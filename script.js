@@ -1,5 +1,7 @@
 // ===== Data Model =====
 const STORAGE_KEY = 'prompt-collection-box';
+const API_KEY_STORAGE = 'gemini-api-key';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 // ===== State =====
 let prompts = [];
@@ -27,7 +29,16 @@ const elements = {
     cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
     confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
     toast: document.getElementById('toast'),
-    toastMessage: document.getElementById('toastMessage')
+    toastMessage: document.getElementById('toastMessage'),
+    // Settings modal elements
+    settingsBtn: document.getElementById('settingsBtn'),
+    settingsModalOverlay: document.getElementById('settingsModalOverlay'),
+    settingsModalClose: document.getElementById('settingsModalClose'),
+    apiKeyInput: document.getElementById('apiKeyInput'),
+    saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
+    cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
+    // AI generate button
+    aiGenerateBtn: document.getElementById('aiGenerateBtn')
 };
 
 // ===== LocalStorage Functions =====
@@ -45,6 +56,19 @@ function loadFromStorage() {
             prompts = [];
         }
     }
+}
+
+// ===== API Key Functions =====
+function getApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE) || '';
+}
+
+function saveApiKey(key) {
+    if (key && key.trim()) {
+        localStorage.setItem(API_KEY_STORAGE, key.trim());
+        return true;
+    }
+    return false;
 }
 
 // ===== Utility Functions =====
@@ -82,20 +106,20 @@ function showToast(message = '已複製到剪貼簿！') {
 // ===== Modal Functions =====
 function openModal(isEdit = false, prompt = null) {
     editingId = isEdit && prompt ? prompt.id : null;
-    
+
     elements.modalTitle.textContent = isEdit ? '編輯咒語' : '新增咒語';
     elements.promptForm.reset();
-    
+
     if (isEdit && prompt) {
         elements.promptTitle.value = prompt.title;
         elements.promptContent.value = prompt.content;
         elements.promptTags.value = formatTags(prompt.tags);
         elements.promptImage.value = prompt.imageUrl || '';
     }
-    
+
     elements.modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
-    
+
     // Focus on title input after animation
     setTimeout(() => elements.promptTitle.focus(), 100);
 }
@@ -116,6 +140,100 @@ function closeDeleteModal() {
     elements.deleteModalOverlay.classList.remove('active');
     document.body.style.overflow = '';
     deleteId = null;
+}
+
+// ===== Settings Modal Functions =====
+function openSettingsModal() {
+    // Load existing API key (masked display)
+    const existingKey = getApiKey();
+    elements.apiKeyInput.value = existingKey;
+
+    elements.settingsModalOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => elements.apiKeyInput.focus(), 100);
+}
+
+function closeSettingsModal() {
+    elements.settingsModalOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function handleSaveApiKey() {
+    const key = elements.apiKeyInput.value;
+    if (saveApiKey(key)) {
+        showToast('API Key 已儲存！');
+        closeSettingsModal();
+    } else {
+        showToast('請輸入有效的 API Key');
+    }
+}
+
+// ===== AI Title Generation =====
+function setGenerateBtnLoading(isLoading) {
+    const btn = elements.aiGenerateBtn;
+    const textSpan = btn.querySelector('.ai-btn-text');
+
+    if (isLoading) {
+        btn.classList.add('loading');
+        textSpan.textContent = '分析中...';
+    } else {
+        btn.classList.remove('loading');
+        textSpan.textContent = '自動生成';
+    }
+}
+
+async function generateTitleWithAI() {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        showToast('請先至設定輸入 Gemini API Key');
+        openSettingsModal();
+        return;
+    }
+
+    const promptContent = elements.promptContent.value.trim();
+    if (!promptContent) {
+        showToast('請先輸入咒語內容');
+        elements.promptContent.focus();
+        return;
+    }
+
+    setGenerateBtnLoading(true);
+
+    try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `請分析以下 Prompt 的內容，並生成一個繁體中文的精簡標題，限制在 50 字以內，不要包含引號或多餘解釋，直接回覆標題文字即可：\n\n${promptContent}`
+                    }]
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+        if (title) {
+            // Clean up the title (remove any quotes or extra whitespace)
+            const cleanTitle = title.replace(/^["'「『]|["'」』]$/g, '').trim();
+            elements.promptTitle.value = cleanTitle;
+            showToast('標題已生成！');
+        } else {
+            throw new Error('No title generated');
+        }
+    } catch (error) {
+        console.error('AI generation error:', error);
+        showToast('生成失敗，請檢查 API Key 是否正確');
+    } finally {
+        setGenerateBtnLoading(false);
+    }
 }
 
 // ===== CRUD Operations =====
@@ -181,11 +299,11 @@ async function copyToClipboard(content) {
 // ===== Search/Filter =====
 function filterPrompts(query) {
     if (!query || !query.trim()) return prompts;
-    
+
     const searchTerm = query.toLowerCase().trim();
     return prompts.filter(prompt => {
         const titleMatch = prompt.title.toLowerCase().includes(searchTerm);
-        const tagMatch = prompt.tags.some(tag => 
+        const tagMatch = prompt.tags.some(tag =>
             tag.toLowerCase().includes(searchTerm)
         );
         return titleMatch || tagMatch;
@@ -197,19 +315,19 @@ function createCardElement(prompt) {
     const card = document.createElement('div');
     card.className = 'card';
     card.dataset.id = prompt.id;
-    
-    const tagsHtml = prompt.tags.length > 0 
+
+    const tagsHtml = prompt.tags.length > 0
         ? `<div class="card-tags">
             ${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
            </div>`
         : '';
-    
-    const imageHtml = prompt.imageUrl 
+
+    const imageHtml = prompt.imageUrl
         ? `<div class="card-image">
             <img src="${escapeHtml(prompt.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">
            </div>`
         : '';
-    
+
     card.innerHTML = `
         <div class="card-header">
             <h3 class="card-title">${escapeHtml(prompt.title)}</h3>
@@ -239,23 +357,23 @@ function createCardElement(prompt) {
             複製咒語
         </button>
     `;
-    
+
     return card;
 }
 
 function renderCards() {
     const query = elements.searchInput.value;
     const filteredPrompts = filterPrompts(query);
-    
+
     elements.cardsContainer.innerHTML = '';
-    
+
     if (filteredPrompts.length === 0) {
         elements.emptyState.classList.add('visible');
         elements.cardsContainer.style.display = 'none';
     } else {
         elements.emptyState.classList.remove('visible');
         elements.cardsContainer.style.display = 'grid';
-        
+
         filteredPrompts.forEach(prompt => {
             const card = createCardElement(prompt);
             elements.cardsContainer.appendChild(card);
@@ -266,14 +384,14 @@ function renderCards() {
 // ===== Event Handlers =====
 function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     const data = {
         title: elements.promptTitle.value.trim(),
         content: elements.promptContent.value.trim(),
         tags: parseTags(elements.promptTags.value),
         imageUrl: elements.promptImage.value.trim() || null
     };
-    
+
     if (editingId) {
         updatePrompt(editingId, data);
         showToast('咒語已更新！');
@@ -281,21 +399,21 @@ function handleFormSubmit(e) {
         addPrompt(data);
         showToast('咒語已新增！');
     }
-    
+
     closeModal();
 }
 
 function handleCardAction(e) {
     const actionBtn = e.target.closest('[data-action]');
     if (!actionBtn) return;
-    
+
     const action = actionBtn.dataset.action;
     const card = actionBtn.closest('.card');
     const promptId = card?.dataset.id;
     const prompt = prompts.find(p => p.id === promptId);
-    
+
     if (!prompt) return;
-    
+
     switch (action) {
         case 'edit':
             openModal(true, prompt);
@@ -325,36 +443,50 @@ function handleConfirmDelete() {
 function initEventListeners() {
     // Add button
     elements.addBtn.addEventListener('click', () => openModal());
-    
+
     // Modal close buttons
     elements.modalClose.addEventListener('click', closeModal);
     elements.cancelBtn.addEventListener('click', closeModal);
-    
+
     // Click outside modal to close
     elements.modalOverlay.addEventListener('click', (e) => {
         if (e.target === elements.modalOverlay) closeModal();
     });
-    
+
     // Form submission
     elements.promptForm.addEventListener('submit', handleFormSubmit);
-    
+
     // Card actions (using event delegation)
     elements.cardsContainer.addEventListener('click', handleCardAction);
-    
+
     // Search input
     elements.searchInput.addEventListener('input', handleSearch);
-    
+
     // Delete modal
     elements.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
     elements.confirmDeleteBtn.addEventListener('click', handleConfirmDelete);
     elements.deleteModalOverlay.addEventListener('click', (e) => {
         if (e.target === elements.deleteModalOverlay) closeDeleteModal();
     });
-    
+
+    // Settings modal
+    elements.settingsBtn.addEventListener('click', openSettingsModal);
+    elements.settingsModalClose.addEventListener('click', closeSettingsModal);
+    elements.cancelSettingsBtn.addEventListener('click', closeSettingsModal);
+    elements.saveApiKeyBtn.addEventListener('click', handleSaveApiKey);
+    elements.settingsModalOverlay.addEventListener('click', (e) => {
+        if (e.target === elements.settingsModalOverlay) closeSettingsModal();
+    });
+
+    // AI generate button
+    elements.aiGenerateBtn.addEventListener('click', generateTitleWithAI);
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (elements.deleteModalOverlay.classList.contains('active')) {
+            if (elements.settingsModalOverlay.classList.contains('active')) {
+                closeSettingsModal();
+            } else if (elements.deleteModalOverlay.classList.contains('active')) {
                 closeDeleteModal();
             } else if (elements.modalOverlay.classList.contains('active')) {
                 closeModal();

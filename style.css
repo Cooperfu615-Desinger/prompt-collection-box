@@ -7,39 +7,41 @@
     --bg-code: #0d0d14;
     --border-color: rgba(124, 58, 237, 0.2);
     --border-glow: rgba(124, 58, 237, 0.4);
-    
+
     --text-primary: #f0f0f5;
     --text-secondary: #a0a0b0;
     --text-muted: #606070;
-    
+
     --accent-primary: #7c3aed;
     --accent-secondary: #a855f7;
     --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-    
+
     --danger: #ef4444;
     --danger-hover: #dc2626;
     --success: #22c55e;
-    
+
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
     --shadow-glow: 0 0 30px rgba(124, 58, 237, 0.15);
-    
+
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 24px;
-    
+
     --transition-fast: 0.15s ease;
     --transition-normal: 0.25s ease;
     --transition-slow: 0.4s ease;
-    
+
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* ===== Reset & Base ===== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -104,6 +106,47 @@ body {
         align-items: center;
         justify-content: space-between;
     }
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .header-right {
+        width: auto;
+    }
+}
+
+/* ===== Settings Button ===== */
+.settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    flex-shrink: 0;
+}
+
+.settings-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.settings-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: rotate(45deg);
 }
 
 .logo {
@@ -233,6 +276,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -556,6 +600,84 @@ body {
     border-top: 1px solid var(--border-color);
 }
 
+/* ===== Label with Action ===== */
+.label-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.label-with-action label {
+    margin-bottom: 0;
+}
+
+/* ===== AI Generate Button ===== */
+.ai-generate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
+    border: 1px solid rgba(124, 58, 237, 0.4);
+    border-radius: 9999px;
+    color: var(--accent-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.ai-generate-btn:hover {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%);
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+}
+
+.ai-generate-btn:active {
+    transform: translateY(0);
+}
+
+.ai-generate-btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.ai-generate-btn.loading .ai-btn-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ai-btn-icon {
+    font-size: 0.875rem;
+    line-height: 1;
+}
+
+.ai-btn-text {
+    line-height: 1;
+}
+
+/* ===== API Hint ===== */
+.api-hint {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 /* ===== Buttons ===== */
 .btn {
     padding: 0.75rem 1.5rem;
@@ -635,22 +757,22 @@ body {
     .header {
         padding: 1rem;
     }
-    
+
     .main-content {
         padding: 1.5rem 1rem;
     }
-    
+
     .modal {
         margin: 0.5rem;
         max-height: calc(100vh - 1rem);
     }
-    
+
     .modal-header,
     .modal-form,
     .form-actions {
         padding: 1rem;
     }
-    
+
     .card {
         padding: 1.25rem;
     }
