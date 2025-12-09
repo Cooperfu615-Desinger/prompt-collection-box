@@ -64,11 +64,15 @@ function getApiKey() {
 }
 
 function saveApiKey(key) {
-    if (key && key.trim()) {
-        localStorage.setItem(API_KEY_STORAGE, key.trim());
-        return true;
+    const trimmedKey = key ? key.trim() : '';
+    // 強制覆蓋：無論是新 Key 或清空，都執行儲存
+    if (trimmedKey) {
+        localStorage.setItem(API_KEY_STORAGE, trimmedKey);
+    } else {
+        // 如果是空的，清除 localStorage 中的 key
+        localStorage.removeItem(API_KEY_STORAGE);
     }
-    return false;
+    return true; // 永遠回傳成功，讓呼叫端知道操作已完成
 }
 
 // ===== Utility Functions =====
@@ -161,12 +165,21 @@ function closeSettingsModal() {
 
 function handleSaveApiKey() {
     const key = elements.apiKeyInput.value;
-    if (saveApiKey(key)) {
+    const trimmedKey = key ? key.trim() : '';
+
+    saveApiKey(key);
+
+    if (trimmedKey) {
+        // 有輸入 Key，顯示更新成功
+        alert('API Key 已更新！');
         showToast('API Key 已儲存！');
-        closeSettingsModal();
     } else {
-        showToast('請輸入有效的 API Key');
+        // 清空 Key
+        alert('API Key 已清除！');
+        showToast('API Key 已清除！');
     }
+
+    closeSettingsModal();
 }
 
 // ===== AI Title Generation =====
