@@ -7,6 +7,9 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 let prompts = [];
 let editingId = null;
 let deleteId = null;
+// Modal Tab State
+let modalVersions = [];
+let activeModalTabIdx = 0;
 
 // ===== DOM Elements =====
 const elements = {
@@ -20,9 +23,13 @@ const elements = {
     promptForm: document.getElementById('promptForm'),
     promptId: document.getElementById('promptId'),
     promptTitle: document.getElementById('promptTitle'),
-    promptContent: document.getElementById('promptContent'),
     promptTags: document.getElementById('promptTags'),
     promptImage: document.getElementById('promptImage'),
+    // Tab Elements
+    modalTabsList: document.getElementById('modalTabsList'),
+    modalTabsPanels: document.getElementById('modalTabsPanels'),
+    addTabBtn: document.getElementById('addTabBtn'),
+
     cancelBtn: document.getElementById('cancelBtn'),
     deleteModalOverlay: document.getElementById('deleteModalOverlay'),
     deletePromptId: document.getElementById('deletePromptId'),
@@ -50,7 +57,20 @@ function loadFromStorage() {
     const data = localStorage.getItem(STORAGE_KEY);
     if (data) {
         try {
-            prompts = JSON.parse(data);
+            const parsed = JSON.parse(data);
+            // Migration: Convert old format (string content) to new format (versions array)
+            prompts = parsed.map(p => {
+                if (!p.versions) {
+                    return {
+                        ...p,
+                        versions: [{
+                            label: '通用',
+                            content: p.content || ''
+                        }]
+                    };
+                }
+                return p;
+            });
         } catch (e) {
             console.error('Failed to parse stored data:', e);
             prompts = [];
@@ -89,10 +109,11 @@ function parseTags(tagString) {
 }
 
 function formatTags(tags) {
-    return tags.join(', ');
+    return tags ? tags.join(', ') : '';
 }
 
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -107,19 +128,105 @@ function showToast(message = '已複製到剪貼簿！') {
     }, 2500);
 }
 
-// ===== Modal Functions =====
+// ===== Modal Functions (Tabs Logic) =====
+function renderModalTabs() {
+    elements.modalTabsList.innerHTML = '';
+    elements.modalTabsPanels.innerHTML = '';
+
+    modalVersions.forEach((version, index) => {
+        // Render Tab Button
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `tab-btn ${index === activeModalTabIdx ? 'active' : ''}`;
+        btn.textContent = version.label || `版本 ${index + 1}`;
+        btn.onclick = () => switchModalTab(index);
+        elements.modalTabsList.appendChild(btn);
+
+        // Render Panel
+        const panel = document.createElement('div');
+        panel.className = `tab-panel ${index === activeModalTabIdx ? 'active' : ''}`;
+
+        // Version Label Input
+        const labelInput = document.createElement('input');
+        labelInput.type = 'text';
+        labelInput.className = 'version-label-input';
+        labelInput.placeholder = '版本名稱 (例如: ChatGPT, v1)';
+        labelInput.value = version.label;
+        labelInput.oninput = (e) => {
+            version.label = e.target.value; // Sync state
+            btn.textContent = e.target.value || `版本 ${index + 1}`; // Sync button text
+        };
+        panel.appendChild(labelInput);
+
+        // Content Textarea
+        const textarea = document.createElement('textarea');
+        textarea.required = true;
+        textarea.placeholder = '請輸入你的 Prompt 內容...';
+        textarea.value = version.content;
+        textarea.id = `modal-version-content-${index}`; // For AI generation targeting
+        textarea.oninput = (e) => {
+            version.content = e.target.value; // Sync state
+        };
+        panel.appendChild(textarea);
+
+        // Delete Button (Only if > 1 version)
+        if (modalVersions.length > 1) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'delete-version-btn';
+            deleteBtn.textContent = '刪除此版本';
+            deleteBtn.onclick = () => deleteModalTab(index);
+            panel.appendChild(deleteBtn);
+        }
+
+        elements.modalTabsPanels.appendChild(panel);
+    });
+
+    // Update Add Button State (Max 3)
+    elements.addTabBtn.disabled = modalVersions.length >= 3;
+}
+
+function switchModalTab(index) {
+    activeModalTabIdx = index;
+    renderModalTabs(); // Re-render to update active classes
+}
+
+function addModalTab() {
+    if (modalVersions.length >= 3) return;
+    const nextNum = modalVersions.length + 1;
+    modalVersions.push({ label: `v${nextNum}`, content: '' });
+    activeModalTabIdx = modalVersions.length - 1; // Switch to new tab
+    renderModalTabs();
+}
+
+function deleteModalTab(index) {
+    if (modalVersions.length <= 1) return;
+    modalVersions.splice(index, 1);
+    // Adjust active index
+    if (activeModalTabIdx >= modalVersions.length) {
+        activeModalTabIdx = modalVersions.length - 1;
+    }
+    renderModalTabs();
+}
+
 function openModal(isEdit = false, prompt = null) {
     editingId = isEdit && prompt ? prompt.id : null;
-
     elements.modalTitle.textContent = isEdit ? '編輯咒語' : '新增咒語';
     elements.promptForm.reset();
 
     if (isEdit && prompt) {
         elements.promptTitle.value = prompt.title;
-        elements.promptContent.value = prompt.content;
         elements.promptTags.value = formatTags(prompt.tags);
         elements.promptImage.value = prompt.imageUrl || '';
+        // Clone versions to avoid direct mutation
+        modalVersions = JSON.parse(JSON.stringify(prompt.versions));
+    } else {
+        // New Prompt Defaults
+        modalVersions = [{ label: '通用', content: '' }];
     }
+
+    activeModalTabIdx = 0;
+    renderModalTabs();
 
     elements.modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -132,6 +239,8 @@ function closeModal() {
     elements.modalOverlay.classList.remove('active');
     document.body.style.overflow = '';
     editingId = null;
+    modalVersions = [];
+    activeModalTabIdx = 0;
 }
 
 function openDeleteModal(id) {
@@ -204,10 +313,14 @@ async function generateTitleWithAI() {
         return;
     }
 
-    const promptContent = elements.promptContent.value.trim();
-    if (!promptContent) {
-        showToast('請先輸入咒語內容');
-        elements.promptContent.focus();
+    // Use current active tab content
+    const currentContent = modalVersions[activeModalTabIdx]?.content?.trim();
+
+    if (!currentContent) {
+        showToast('請先輸入咒語內容 (目前版本)');
+        // Focus the textarea
+        const textarea = document.getElementById(`modal-version-content-${activeModalTabIdx}`);
+        if (textarea) textarea.focus();
         return;
     }
 
@@ -220,7 +333,7 @@ async function generateTitleWithAI() {
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: `請分析以下 Prompt 的內容，並生成一個繁體中文的精簡標題，限制在 50 字以內，不要包含引號或多餘解釋，直接回覆標題文字即可：\n\n${promptContent}`
+                        text: `請分析以下 Prompt 的內容，並生成一個繁體中文的精簡標題，限制在 50 字以內，不要包含引號或多餘解釋，直接回覆標題文字即可：\n\n${currentContent}`
                     }]
                 }]
             })
@@ -254,7 +367,7 @@ function addPrompt(data) {
     const prompt = {
         id: generateId(),
         title: data.title,
-        content: data.content,
+        versions: data.versions, // Array of { label, content }
         tags: data.tags,
         imageUrl: data.imageUrl,
         createdAt: new Date().toISOString()
@@ -270,7 +383,7 @@ function updatePrompt(id, data) {
         prompts[index] = {
             ...prompts[index],
             title: data.title,
-            content: data.content,
+            versions: data.versions,
             tags: data.tags,
             imageUrl: data.imageUrl,
             updatedAt: new Date().toISOString()
@@ -319,7 +432,12 @@ function filterPrompts(query) {
         const tagMatch = prompt.tags.some(tag =>
             tag.toLowerCase().includes(searchTerm)
         );
-        return titleMatch || tagMatch;
+        // Search in all versions content
+        const contentMatch = prompt.versions.some(v =>
+            v.content.toLowerCase().includes(searchTerm)
+        );
+
+        return titleMatch || tagMatch || contentMatch;
     });
 }
 
@@ -328,6 +446,10 @@ function createCardElement(prompt) {
     const card = document.createElement('div');
     card.className = 'card';
     card.dataset.id = prompt.id;
+
+    // Determine initial active version (usually first)
+    const activeVersionIdx = 0;
+    const activeVersion = prompt.versions[activeVersionIdx];
 
     const tagsHtml = prompt.tags.length > 0
         ? `<div class="card-tags">
@@ -340,6 +462,18 @@ function createCardElement(prompt) {
             <img src="${escapeHtml(prompt.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">
            </div>`
         : '';
+
+    // Generate Tabs HTML if more than 1 version
+    let tabsHeaderHtml = '';
+    if (prompt.versions.length > 1) {
+        const tabsBtns = prompt.versions.map((v, idx) =>
+            `<button class="tab-btn ${idx === 0 ? 'active' : ''}" 
+                data-idx="${idx}" onclick="handleCardTabSwitch(this, '${prompt.id}', ${idx})">
+                ${escapeHtml(v.label)}
+             </button>`
+        ).join('');
+        tabsHeaderHtml = `<div class="tabs-header">${tabsBtns}</div>`;
+    }
 
     card.innerHTML = `
         <div class="card-header">
@@ -359,10 +493,15 @@ function createCardElement(prompt) {
                 </button>
             </div>
         </div>
-        <div class="card-content">${escapeHtml(prompt.content)}</div>
+        
+        <div class="tabs-container">
+            ${tabsHeaderHtml}
+            <div class="card-content" id="card-content-${prompt.id}">${escapeHtml(activeVersion.content)}</div>
+        </div>
+
         ${tagsHtml}
         ${imageHtml}
-        <button class="copy-btn" data-action="copy">
+        <button class="copy-btn" data-action="copy" data-current-idx="0">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -373,6 +512,26 @@ function createCardElement(prompt) {
 
     return card;
 }
+
+// Global function for inline onclick in HTML (simpler than event delegation for tabs)
+window.handleCardTabSwitch = function (btn, promptId, idx) {
+    const prompt = prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+
+    const card = btn.closest('.card');
+
+    // Update Tab Buttons
+    card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Update Content
+    const contentDiv = document.getElementById(`card-content-${promptId}`);
+    contentDiv.textContent = prompt.versions[idx].content;
+
+    // Update Copy Button index
+    const copyBtn = card.querySelector('.copy-btn');
+    copyBtn.dataset.currentIdx = idx;
+};
 
 function renderCards() {
     const query = elements.searchInput.value;
@@ -398,9 +557,16 @@ function renderCards() {
 function handleFormSubmit(e) {
     e.preventDefault();
 
+    // Validation: Check if there is at least one version and content is not empty
+    const validVersions = modalVersions.filter(v => v.content.trim() !== '');
+    if (validVersions.length === 0) {
+        showToast('請至少輸入一個版本的內容');
+        return;
+    }
+
     const data = {
         title: elements.promptTitle.value.trim(),
-        content: elements.promptContent.value.trim(),
+        versions: modalVersions,
         tags: parseTags(elements.promptTags.value),
         imageUrl: elements.promptImage.value.trim() || null
     };
@@ -417,6 +583,9 @@ function handleFormSubmit(e) {
 }
 
 function handleCardAction(e) {
+    // Avoid triggering if clicking on tabs
+    if (e.target.closest('.tabs-header')) return;
+
     const actionBtn = e.target.closest('[data-action]');
     if (!actionBtn) return;
 
@@ -435,7 +604,9 @@ function handleCardAction(e) {
             openDeleteModal(promptId);
             break;
         case 'copy':
-            copyToClipboard(prompt.content);
+            const currentIdx = parseInt(actionBtn.dataset.currentIdx || '0');
+            const content = prompt.versions[currentIdx]?.content || '';
+            copyToClipboard(content);
             break;
     }
 }
@@ -460,6 +631,9 @@ function initEventListeners() {
     // Modal close buttons
     elements.modalClose.addEventListener('click', closeModal);
     elements.cancelBtn.addEventListener('click', closeModal);
+
+    // Add Tab Button
+    elements.addTabBtn.addEventListener('click', addModalTab);
 
     // Click outside modal to close
     elements.modalOverlay.addEventListener('click', (e) => {
