@@ -1,20 +1,4 @@
-// ===== Imports =====
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
-import {
-    getFirestore,
-    collection,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    doc,
-    onSnapshot,
-    query,
-    orderBy,
-    serverTimestamp,
-    writeBatch
-} from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
-
-// ===== Firebase Configuration =====
+// ===== Firebase Configuration & Init (Compat) =====
 const firebaseConfig = {
     apiKey: "AIzaSyBqegw9GxFNJe45gRjAPf_Cd8oOy_ioynw",
     authDomain: "prompt-collection-cloud.firebaseapp.com",
@@ -25,21 +9,43 @@ const firebaseConfig = {
     measurementId: "G-0ET6RM8YXF"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Initialize Firebase (Compat)
+try {
+    firebase.initializeApp(firebaseConfig);
+    console.log("Firebase App Initialized");
+} catch (error) {
+    console.error("Firebase Init Error:", error);
+}
+
+const db = firebase.firestore();
 const PROMPT_COLLECTION = 'prompts';
 
+// ===== Connection Test (Requested) =====
+function testFirestoreConnection() {
+    console.log("Testing Firestore Connection...");
+    db.collection("test_collection").add({
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        message: "Hello from Prompt Box Debugger"
+    })
+        .then((docRef) => {
+            console.log("Firestore 連線成功！測試寫入文件 ID: ", docRef.id);
+            showToast("Firestore 連線成功！");
+        })
+        .catch((error) => {
+            console.error("Firestore Error (Test Write):", error);
+            alert("Firestore 連線失敗，請查看 Console (F12) 獲取詳細錯誤。");
+        });
+}
+
 // ===== Data Model =====
-const LOCAL_STORAGE_KEY = 'prompt-collection-box'; // Used ONLY for migration
-const API_KEY_STORAGE = 'gemini-api-key'; // Kept local for security
+const LOCAL_STORAGE_KEY = 'prompt-collection-box';
+const API_KEY_STORAGE = 'gemini-api-key';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 // ===== State =====
 let prompts = [];
 let editingId = null;
 let deleteId = null;
-// Modal Tab State
 let modalVersions = [];
 let activeModalTabIdx = 0;
 
@@ -57,11 +63,9 @@ const elements = {
     promptTitle: document.getElementById('promptTitle'),
     promptTags: document.getElementById('promptTags'),
     promptImage: document.getElementById('promptImage'),
-    // Tab Elements
     modalTabsList: document.getElementById('modalTabsList'),
     modalTabsPanels: document.getElementById('modalTabsPanels'),
     addTabBtn: document.getElementById('addTabBtn'),
-
     cancelBtn: document.getElementById('cancelBtn'),
     deleteModalOverlay: document.getElementById('deleteModalOverlay'),
     deletePromptId: document.getElementById('deletePromptId'),
@@ -69,39 +73,38 @@ const elements = {
     confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
     toast: document.getElementById('toast'),
     toastMessage: document.getElementById('toastMessage'),
-    // Settings modal elements
     settingsBtn: document.getElementById('settingsBtn'),
     settingsModalOverlay: document.getElementById('settingsModalOverlay'),
     settingsModalClose: document.getElementById('settingsModalClose'),
     apiKeyInput: document.getElementById('apiKeyInput'),
     saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
     cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
-    // AI generate button
     aiGenerateBtn: document.getElementById('aiGenerateBtn')
 };
 
-// ===== Firestore Logic =====
+// ===== Firestore Logic (Compat Syntax) =====
 
 // Listen for real-time updates
 function subscribeToPrompts() {
-    const q = query(collection(db, PROMPT_COLLECTION), orderBy('createdAt', 'desc'));
-
-    onSnapshot(q, (snapshot) => {
-        prompts = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        renderCards();
-    }, (error) => {
-        console.error("Error fetching prompts:", error);
-        showToast("無法載入資料，請檢查網路連線");
-    });
+    db.collection(PROMPT_COLLECTION)
+        .orderBy('createdAt', 'desc')
+        .onSnapshot((snapshot) => {
+            prompts = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log(`Loaded ${prompts.length} prompts from Firestore.`);
+            renderCards();
+        }, (error) => {
+            console.error("Firestore Error (Snapshot):", error);
+            showToast("無法載入資料，請檢查網路連線");
+        });
 }
 
-// Data Migration (Local -> Firestore)
+// Data Migration
 async function migrateLocalStorage() {
     const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!localData) return; // Nothing to migrate
+    if (!localData) return;
 
     try {
         const parsedData = JSON.parse(localData);
@@ -110,16 +113,12 @@ async function migrateLocalStorage() {
             showToast("正在遷移舊資料至雲端...");
             console.log(`Migrating ${parsedData.length} prompts...`);
 
-            const batch = writeBatch(db);
+            const batch = db.batch();
             let count = 0;
 
             parsedData.forEach(p => {
-                const docRef = doc(collection(db, PROMPT_COLLECTION));
-                const { id, ...promptData } = p; // Remove ID, let Firestore generate one, or use it as ID? Let's use Firestore ID for clean slate or keep custom ID.
-                // It's safer to let Firestore generate IDs or just use the batch.set for specific IDs.
-                // Since old IDs were random strings, let's just add them as new docs to ensure valid Firestore refs.
+                const docRef = db.collection(PROMPT_COLLECTION).doc();
 
-                // Ensure version format
                 let versions = p.versions;
                 if (!versions) {
                     versions = [{ label: '通用', content: p.content || '' }];
@@ -131,14 +130,14 @@ async function migrateLocalStorage() {
                     tags: p.tags || [],
                     imageUrl: p.imageUrl || null,
                     createdAt: p.createdAt || new Date().toISOString(),
-                    migratedAt: serverTimestamp()
+                    migratedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 count++;
             });
 
             await batch.commit();
             console.log("Migration complete.");
-            localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear old data
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
             showToast(`成功遷移 ${count} 筆咒語！`);
         }
     } catch (e) {
@@ -147,7 +146,7 @@ async function migrateLocalStorage() {
     }
 }
 
-// ===== API Key Functions (Local Only) =====
+// ===== API Key Functions =====
 function getApiKey() {
     return localStorage.getItem(API_KEY_STORAGE) || '';
 }
@@ -165,10 +164,7 @@ function saveApiKey(key) {
 // ===== Utility Functions =====
 function parseTags(tagString) {
     if (!tagString || !tagString.trim()) return [];
-    return tagString
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
+    return tagString.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
 }
 
 function formatTags(tags) {
@@ -197,7 +193,6 @@ function renderModalTabs() {
     elements.modalTabsPanels.innerHTML = '';
 
     modalVersions.forEach((version, index) => {
-        // Render Tab Button
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `tab-btn ${index === activeModalTabIdx ? 'active' : ''}`;
@@ -205,34 +200,30 @@ function renderModalTabs() {
         btn.onclick = () => switchModalTab(index);
         elements.modalTabsList.appendChild(btn);
 
-        // Render Panel
         const panel = document.createElement('div');
         panel.className = `tab-panel ${index === activeModalTabIdx ? 'active' : ''}`;
 
-        // Version Label Input
         const labelInput = document.createElement('input');
         labelInput.type = 'text';
         labelInput.className = 'version-label-input';
         labelInput.placeholder = '版本名稱 (例如: ChatGPT, v1)';
         labelInput.value = version.label;
         labelInput.oninput = (e) => {
-            version.label = e.target.value; // Sync state
-            btn.textContent = e.target.value || `版本 ${index + 1}`; // Sync button text
+            version.label = e.target.value;
+            btn.textContent = e.target.value || `版本 ${index + 1}`;
         };
         panel.appendChild(labelInput);
 
-        // Content Textarea
         const textarea = document.createElement('textarea');
         textarea.required = true;
         textarea.placeholder = '請輸入你的 Prompt 內容...';
         textarea.value = version.content;
-        textarea.id = `modal-version-content-${index}`; // For AI generation targeting
+        textarea.id = `modal-version-content-${index}`;
         textarea.oninput = (e) => {
-            version.content = e.target.value; // Sync state
+            version.content = e.target.value;
         };
         panel.appendChild(textarea);
 
-        // Delete Button (Only if > 1 version)
         if (modalVersions.length > 1) {
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
@@ -245,7 +236,6 @@ function renderModalTabs() {
         elements.modalTabsPanels.appendChild(panel);
     });
 
-    // Update Add Button State (Max 3)
     elements.addTabBtn.disabled = modalVersions.length >= 3;
 }
 
@@ -317,7 +307,6 @@ function closeDeleteModal() {
 function openSettingsModal() {
     const existingKey = getApiKey();
     elements.apiKeyInput.value = existingKey;
-
     elements.settingsModalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     setTimeout(() => elements.apiKeyInput.focus(), 100);
@@ -330,18 +319,8 @@ function closeSettingsModal() {
 
 function handleSaveApiKey() {
     const key = elements.apiKeyInput.value;
-    const trimmedKey = key ? key.trim() : '';
-
     saveApiKey(key);
-
-    if (trimmedKey) {
-        alert('API Key 已更新！');
-        showToast('API Key 已儲存！');
-    } else {
-        alert('API Key 已清除！');
-        showToast('API Key 已清除！');
-    }
-
+    showToast(key ? 'API Key 已儲存！' : 'API Key 已清除！');
     closeSettingsModal();
 }
 
@@ -349,7 +328,6 @@ function handleSaveApiKey() {
 function setGenerateBtnLoading(isLoading) {
     const btn = elements.aiGenerateBtn;
     const textSpan = btn.querySelector('.ai-btn-text');
-
     if (isLoading) {
         btn.classList.add('loading');
         textSpan.textContent = '分析中...';
@@ -390,70 +368,71 @@ async function generateTitleWithAI() {
             })
         });
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
         const data = await response.json();
         const title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
         if (title) {
-            const cleanTitle = title.replace(/^["'「『]|["'」』]$/g, '').trim();
-            elements.promptTitle.value = cleanTitle;
+            elements.promptTitle.value = title.replace(/^["'「『]|["'」』]$/g, '').trim();
             showToast('標題已生成！');
         } else {
             throw new Error('No title generated');
         }
     } catch (error) {
         console.error('AI generation error:', error);
-        showToast('生成失敗，請檢查 API Key 是否正確');
+        showToast('生成失敗，請檢查 API Key');
     } finally {
         setGenerateBtnLoading(false);
     }
 }
 
-// ===== CRUD Operations (Direct Firestore) =====
-async function addPrompt(data) {
-    try {
-        await addDoc(collection(db, PROMPT_COLLECTION), {
-            title: data.title,
-            versions: data.versions,
-            tags: data.tags,
-            imageUrl: data.imageUrl,
-            createdAt: new Date().toISOString()
+// ===== CRUD Operations (Compat) =====
+function addPrompt(data) {
+    db.collection(PROMPT_COLLECTION).add({
+        title: data.title,
+        versions: data.versions,
+        tags: data.tags,
+        imageUrl: data.imageUrl,
+        createdAt: new Date().toISOString()
+    })
+        .then(() => {
+            showToast('咒語已新增！');
+            console.log("Firestore 連線成功！(Add)");
+        })
+        .catch((error) => {
+            console.error("Firestore Error (Add):", error);
+            showToast('新增失敗！');
         });
-        showToast('咒語已新增！');
-    } catch (error) {
-        console.error("Error adding document: ", error);
-        showToast('新增失敗！');
-    }
 }
 
-async function updatePrompt(id, data) {
-    try {
-        const promptRef = doc(db, PROMPT_COLLECTION, id);
-        await updateDoc(promptRef, {
-            title: data.title,
-            versions: data.versions,
-            tags: data.tags,
-            imageUrl: data.imageUrl,
-            updatedAt: new Date().toISOString()
+function updatePrompt(id, data) {
+    db.collection(PROMPT_COLLECTION).doc(id).update({
+        title: data.title,
+        versions: data.versions,
+        tags: data.tags,
+        imageUrl: data.imageUrl,
+        updatedAt: new Date().toISOString()
+    })
+        .then(() => {
+            showToast('咒語已更新！');
+            console.log("Firestore 連線成功！(Update)");
+        })
+        .catch((error) => {
+            console.error("Firestore Error (Update):", error);
+            showToast('更新失敗！');
         });
-        showToast('咒語已更新！');
-    } catch (error) {
-        console.error("Error updating document: ", error);
-        showToast('更新失敗！');
-    }
 }
 
-async function deletePrompt(id) {
-    try {
-        await deleteDoc(doc(db, PROMPT_COLLECTION, id));
-        showToast('咒語已刪除！');
-    } catch (error) {
-        console.error("Error removing document: ", error);
-        showToast('刪除失敗！');
-    }
+function deletePrompt(id) {
+    db.collection(PROMPT_COLLECTION).doc(id).delete()
+        .then(() => {
+            showToast('咒語已刪除！');
+            console.log("Firestore 連線成功！(Delete)");
+        })
+        .catch((error) => {
+            console.error("Firestore Error (Delete):", error);
+            showToast('刪除失敗！');
+        });
 }
 
 // ===== Copy to Clipboard =====
@@ -481,17 +460,11 @@ async function copyToClipboard(content) {
 // ===== Search/Filter =====
 function filterPrompts(query) {
     if (!query || !query.trim()) return prompts;
-
     const searchTerm = query.toLowerCase().trim();
     return prompts.filter(prompt => {
         const titleMatch = prompt.title.toLowerCase().includes(searchTerm);
-        const tagMatch = prompt.tags.some(tag =>
-            tag.toLowerCase().includes(searchTerm)
-        );
-        const contentMatch = prompt.versions.some(v =>
-            v.content.toLowerCase().includes(searchTerm)
-        );
-
+        const tagMatch = prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+        const contentMatch = prompt.versions.some(v => v.content.toLowerCase().includes(searchTerm));
         return titleMatch || tagMatch || contentMatch;
     });
 }
@@ -506,15 +479,11 @@ function createCardElement(prompt) {
     const activeVersion = prompt.versions[activeVersionIdx] || { content: '' };
 
     const tagsHtml = prompt.tags.length > 0
-        ? `<div class="card-tags">
-            ${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
-           </div>`
+        ? `<div class="card-tags">${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
         : '';
 
     const imageHtml = prompt.imageUrl
-        ? `<div class="card-image">
-            <img src="${escapeHtml(prompt.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">
-           </div>`
+        ? `<div class="card-image"><img src="${escapeHtml(prompt.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
         : '';
 
     let tabsHeaderHtml = '';
@@ -546,12 +515,10 @@ function createCardElement(prompt) {
                 </button>
             </div>
         </div>
-        
         <div class="tabs-container">
             ${tabsHeaderHtml}
             <div class="card-content" id="card-content-${prompt.id}">${escapeHtml(activeVersion.content)}</div>
         </div>
-
         ${tagsHtml}
         ${imageHtml}
         <button class="copy-btn" data-action="copy" data-current-idx="0">
@@ -562,29 +529,22 @@ function createCardElement(prompt) {
             複製咒語
         </button>
     `;
-
     return card;
 }
 
 window.handleCardTabSwitch = function (btn, promptId, idx) {
     const prompt = prompts.find(p => p.id === promptId);
     if (!prompt) return;
-
     const card = btn.closest('.card');
     card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-
-    const contentDiv = document.getElementById(`card-content-${promptId}`);
-    contentDiv.textContent = prompt.versions[idx].content;
-
-    const copyBtn = card.querySelector('.copy-btn');
-    copyBtn.dataset.currentIdx = idx;
+    document.getElementById(`card-content-${promptId}`).textContent = prompt.versions[idx].content;
+    card.querySelector('.copy-btn').dataset.currentIdx = idx;
 };
 
 function renderCards() {
     const query = elements.searchInput.value;
     const filteredPrompts = filterPrompts(query);
-
     elements.cardsContainer.innerHTML = '';
 
     if (filteredPrompts.length === 0) {
@@ -593,18 +553,13 @@ function renderCards() {
     } else {
         elements.emptyState.classList.remove('visible');
         elements.cardsContainer.style.display = 'grid';
-
-        filteredPrompts.forEach(prompt => {
-            const card = createCardElement(prompt);
-            elements.cardsContainer.appendChild(card);
-        });
+        filteredPrompts.forEach(prompt => elements.cardsContainer.appendChild(createCardElement(prompt)));
     }
 }
 
 // ===== Event Handlers =====
 function handleFormSubmit(e) {
     e.preventDefault();
-
     const validVersions = modalVersions.filter(v => v.content.trim() !== '');
     if (validVersions.length === 0) {
         showToast('請至少輸入一個版本的內容');
@@ -628,7 +583,6 @@ function handleFormSubmit(e) {
 
 function handleCardAction(e) {
     if (e.target.closest('.tabs-header')) return;
-
     const actionBtn = e.target.closest('[data-action]');
     if (!actionBtn) return;
 
@@ -636,20 +590,14 @@ function handleCardAction(e) {
     const card = actionBtn.closest('.card');
     const promptId = card?.dataset.id;
     const prompt = prompts.find(p => p.id === promptId);
-
     if (!prompt) return;
 
     switch (action) {
-        case 'edit':
-            openModal(true, prompt);
-            break;
-        case 'delete':
-            openDeleteModal(promptId);
-            break;
+        case 'edit': openModal(true, prompt); break;
+        case 'delete': openDeleteModal(promptId); break;
         case 'copy':
             const currentIdx = parseInt(actionBtn.dataset.currentIdx || '0');
-            const content = prompt.versions[currentIdx]?.content || '';
-            copyToClipboard(content);
+            copyToClipboard(prompt.versions[currentIdx]?.content || '');
             break;
     }
 }
@@ -671,10 +619,7 @@ function initEventListeners() {
     elements.modalClose.addEventListener('click', closeModal);
     elements.cancelBtn.addEventListener('click', closeModal);
     elements.addTabBtn.addEventListener('click', addModalTab);
-
-    elements.modalOverlay.addEventListener('click', (e) => {
-        if (e.target === elements.modalOverlay) closeModal();
-    });
+    elements.modalOverlay.addEventListener('click', (e) => { if (e.target === elements.modalOverlay) closeModal(); });
 
     elements.promptForm.addEventListener('submit', handleFormSubmit);
     elements.cardsContainer.addEventListener('click', handleCardAction);
@@ -682,44 +627,38 @@ function initEventListeners() {
 
     elements.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
     elements.confirmDeleteBtn.addEventListener('click', handleConfirmDelete);
-    elements.deleteModalOverlay.addEventListener('click', (e) => {
-        if (e.target === elements.deleteModalOverlay) closeDeleteModal();
-    });
+    elements.deleteModalOverlay.addEventListener('click', (e) => { if (e.target === elements.deleteModalOverlay) closeDeleteModal(); });
 
     elements.settingsBtn.addEventListener('click', openSettingsModal);
     elements.settingsModalClose.addEventListener('click', closeSettingsModal);
     elements.cancelSettingsBtn.addEventListener('click', closeSettingsModal);
     elements.saveApiKeyBtn.addEventListener('click', handleSaveApiKey);
-    elements.settingsModalOverlay.addEventListener('click', (e) => {
-        if (e.target === elements.settingsModalOverlay) closeSettingsModal();
-    });
+    elements.settingsModalOverlay.addEventListener('click', (e) => { if (e.target === elements.settingsModalOverlay) closeSettingsModal(); });
 
     elements.aiGenerateBtn.addEventListener('click', generateTitleWithAI);
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (elements.settingsModalOverlay.classList.contains('active')) {
-                closeSettingsModal();
-            } else if (elements.deleteModalOverlay.classList.contains('active')) {
-                closeDeleteModal();
-            } else if (elements.modalOverlay.classList.contains('active')) {
-                closeModal();
-            }
+            if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
+            else if (elements.deleteModalOverlay.classList.contains('active')) closeDeleteModal();
+            else if (elements.modalOverlay.classList.contains('active')) closeModal();
         }
     });
 }
 
 // ===== Initialize App =====
 async function init() {
-    // 1. Subscribe to Firestore first (to show data asap)
+    // 1. Connection Test (Manual write for debug)
+    testFirestoreConnection();
+
+    // 2. Subscribe
     subscribeToPrompts();
 
-    // 2. Perform Migration if needed
+    // 3. Migrate
     await migrateLocalStorage();
 
-    // 3. Setup Listeners
+    // 4. Setup Listeners
     initEventListeners();
 }
 
-// Start the app when DOM is ready
 document.addEventListener('DOMContentLoaded', init);
