@@ -390,24 +390,42 @@ async function generateTitleWithAI() {
     }
 }
 
-// ===== Storage Upload Logic =====
-async function uploadImage(file) {
-    if (!file) return null;
+// ===== Storage Upload Logic (With Error Handling) =====
+function uploadImage(file) {
+    return new Promise((resolve, reject) => {
+        if (!file) {
+            resolve(null);
+            return;
+        }
 
-    // Create a unique filename: images/timestamp_filename
-    const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+        // Create a unique filename: images/timestamp_filename
+        const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+        const uploadTask = storageRef.put(file);
 
-    try {
         showToast("正在上傳圖片...");
-        const snapshot = await storageRef.put(file);
-        const downloadURL = await snapshot.ref.getDownloadURL();
-        console.log("Uploaded a blob or file!", downloadURL);
-        return downloadURL;
-    } catch (error) {
-        console.error("Upload failed:", error);
-        showToast("圖片上傳失敗");
-        return null;
-    }
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                // Progress monitoring (optional)
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                console.log('Upload is ' + progress + '% done');
+            },
+            (error) => {
+                // Handle unsuccessful uploads
+                console.error("Upload failed:", error);
+                // 使用 alert 讓使用者直接看到錯誤訊息
+                alert("上傳失敗：" + error.message);
+                reject(error);
+            },
+            () => {
+                // Handle successful uploads on complete
+                uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
+                    console.log('File available at', downloadURL);
+                    resolve(downloadURL);
+                });
+            }
+        );
+    });
 }
 
 // ===== CRUD Operations (Compat) =====
@@ -589,19 +607,43 @@ function handleFormSubmit(e) {
         return;
     }
 
-    const data = {
-        title: elements.promptTitle.value.trim(),
-        versions: modalVersions,
-        tags: parseTags(elements.promptTags.value),
-        imageUrl: elements.promptImage.value.trim() || null
-    };
+    // Wrap in async call logic
+    // We can't make the handler async because we might need to preventDefault first etc.
+    // So we use an IIFE or just call it.
 
-    if (editingId) {
-        updatePrompt(editingId, data);
-    } else {
-        addPrompt(data);
-    }
-    closeModal();
+    (async () => {
+        // Determine Image URL
+        let finalImageUrl = elements.promptImage.value.trim() || null;
+
+        // Check if file is selected
+        if (elements.imageInput && elements.imageInput.files.length > 0) {
+            const file = elements.imageInput.files[0];
+            try {
+                const uploadedUrl = await uploadImage(file);
+                if (uploadedUrl) {
+                    finalImageUrl = uploadedUrl;
+                }
+            } catch (err) {
+                // Error already handled in uploadImage
+                console.error("Image upload failed inside submit handler", err);
+                return; // Stop submission on upload error? User might want to retry.
+            }
+        }
+
+        const data = {
+            title: elements.promptTitle.value.trim(),
+            versions: modalVersions,
+            tags: parseTags(elements.promptTags.value),
+            imageUrl: finalImageUrl
+        };
+
+        if (editingId) {
+            await updatePrompt(editingId, data);
+        } else {
+            await addPrompt(data);
+        }
+        closeModal();
+    })();
 }
 
 function handleCardAction(e) {
