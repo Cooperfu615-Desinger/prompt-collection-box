@@ -18,6 +18,7 @@ try {
 }
 
 const db = firebase.firestore();
+const storage = firebase.storage();
 const PROMPT_COLLECTION = 'prompts';
 
 // ===== Connection Test (Requested) =====
@@ -33,7 +34,6 @@ function testFirestoreConnection() {
         })
         .catch((error) => {
             console.error("Firestore Error (Test Write):", error);
-            alert("Firestore 連線失敗，請查看 Console (F12) 獲取詳細錯誤。");
         });
 }
 
@@ -62,7 +62,8 @@ const elements = {
     promptId: document.getElementById('promptId'),
     promptTitle: document.getElementById('promptTitle'),
     promptTags: document.getElementById('promptTags'),
-    promptImage: document.getElementById('promptImage'),
+    promptImage: document.getElementById('promptImage'), // URL Input
+    imageInput: document.getElementById('imageInput'),   // File Input
     modalTabsList: document.getElementById('modalTabsList'),
     modalTabsPanels: document.getElementById('modalTabsPanels'),
     addTabBtn: document.getElementById('addTabBtn'),
@@ -266,6 +267,9 @@ function openModal(isEdit = false, prompt = null) {
     elements.modalTitle.textContent = isEdit ? '編輯咒語' : '新增咒語';
     elements.promptForm.reset();
 
+    // Reset file input manually
+    if (elements.imageInput) elements.imageInput.value = '';
+
     if (isEdit && prompt) {
         elements.promptTitle.value = prompt.title;
         elements.promptTags.value = formatTags(prompt.tags);
@@ -386,41 +390,59 @@ async function generateTitleWithAI() {
     }
 }
 
-// ===== CRUD Operations (Compat) =====
-function addPrompt(data) {
-    db.collection(PROMPT_COLLECTION).add({
-        title: data.title,
-        versions: data.versions,
-        tags: data.tags,
-        imageUrl: data.imageUrl,
-        createdAt: new Date().toISOString()
-    })
-        .then(() => {
-            showToast('咒語已新增！');
-            console.log("Firestore 連線成功！(Add)");
-        })
-        .catch((error) => {
-            console.error("Firestore Error (Add):", error);
-            showToast('新增失敗！');
-        });
+// ===== Storage Upload Logic =====
+async function uploadImage(file) {
+    if (!file) return null;
+
+    // Create a unique filename: images/timestamp_filename
+    const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+
+    try {
+        showToast("正在上傳圖片...");
+        const snapshot = await storageRef.put(file);
+        const downloadURL = await snapshot.ref.getDownloadURL();
+        console.log("Uploaded a blob or file!", downloadURL);
+        return downloadURL;
+    } catch (error) {
+        console.error("Upload failed:", error);
+        showToast("圖片上傳失敗");
+        return null;
+    }
 }
 
-function updatePrompt(id, data) {
-    db.collection(PROMPT_COLLECTION).doc(id).update({
-        title: data.title,
-        versions: data.versions,
-        tags: data.tags,
-        imageUrl: data.imageUrl,
-        updatedAt: new Date().toISOString()
-    })
-        .then(() => {
-            showToast('咒語已更新！');
-            console.log("Firestore 連線成功！(Update)");
-        })
-        .catch((error) => {
-            console.error("Firestore Error (Update):", error);
-            showToast('更新失敗！');
+// ===== CRUD Operations (Compat) =====
+async function addPrompt(data) {
+    try {
+        await db.collection(PROMPT_COLLECTION).add({
+            title: data.title,
+            versions: data.versions,
+            tags: data.tags,
+            imageUrl: data.imageUrl,
+            createdAt: new Date().toISOString()
         });
+        showToast('咒語已新增！');
+        console.log("Firestore 連線成功！(Add)");
+    } catch (error) {
+        console.error("Firestore Error (Add):", error);
+        showToast('新增失敗！');
+    }
+}
+
+async function updatePrompt(id, data) {
+    try {
+        await db.collection(PROMPT_COLLECTION).doc(id).update({
+            title: data.title,
+            versions: data.versions,
+            tags: data.tags,
+            imageUrl: data.imageUrl,
+            updatedAt: new Date().toISOString()
+        });
+        showToast('咒語已更新！');
+        console.log("Firestore 連線成功！(Update)");
+    } catch (error) {
+        console.error("Firestore Error (Update):", error);
+        showToast('更新失敗！');
+    }
 }
 
 function deletePrompt(id) {
@@ -482,6 +504,7 @@ function createCardElement(prompt) {
         ? `<div class="card-tags">${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
         : '';
 
+    // Image priority is handled by the data itself (imageUrl field)
     const imageHtml = prompt.imageUrl
         ? `<div class="card-image"><img src="${escapeHtml(prompt.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
         : '';
