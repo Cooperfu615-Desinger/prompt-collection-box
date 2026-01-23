@@ -22,20 +22,7 @@ const storage = firebase.storage();
 const PROMPT_COLLECTION = 'prompts';
 
 // ===== Connection Test (Requested) =====
-function testFirestoreConnection() {
-    console.log("Testing Firestore Connection...");
-    db.collection("test_collection").add({
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        message: "Hello from Prompt Box Debugger"
-    })
-        .then((docRef) => {
-            console.log("Firestore 連線成功！測試寫入文件 ID: ", docRef.id);
-            showToast("Firestore 連線成功！");
-        })
-        .catch((error) => {
-            console.error("Firestore Error (Test Write):", error);
-        });
-}
+
 
 // ===== Data Model =====
 const LOCAL_STORAGE_KEY = 'prompt-collection-box';
