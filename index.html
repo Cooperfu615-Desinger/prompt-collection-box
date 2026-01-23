@@ -111,8 +111,9 @@
                     <input type="text" id="promptTags" placeholder="用逗號分隔，例如：寫作, 行銷, GPT-4">
                 </div>
                 <div class="form-group">
-                    <label for="promptImage">範例圖片連結（選填）</label>
-                    <input type="url" id="promptImage" placeholder="https://example.com/image.png">
+                    <label for="promptImage">範例圖片（上傳或網址）</label>
+                    <input type="file" id="imageInput" accept="image/*" class="file-input">
+                    <input type="url" id="promptImage" placeholder="或是貼上圖片連結...">
                 </div>
                 <input type="hidden" id="promptId">
                 <div class="form-actions">
@@ -175,6 +176,7 @@
     <!-- Firebase Compat SDKs (v10.8.0) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
     <script src="script.js"></script>
 </body>
