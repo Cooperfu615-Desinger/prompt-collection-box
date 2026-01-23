@@ -713,8 +713,7 @@ function initEventListeners() {
 
 // ===== Initialize App =====
 async function init() {
-    // 1. Connection Test (Manual write for debug)
-    testFirestoreConnection();
+
 
     // 2. Subscribe
     subscribeToPrompts();
