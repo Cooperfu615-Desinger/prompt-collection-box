@@ -1021,3 +1021,115 @@ body {
     font-size: 0.85rem;
     padding: 0.5rem 0.75rem;
 }
+
+/* ===== Login Overlay ===== */
+.login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.login-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.login-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: 3rem;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: var(--shadow-lg), var(--shadow-glow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.login-logo {
+    font-size: 4rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-card h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.login-card p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+/* ===== Google Sign-In Button ===== */
+.google-login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    background: white;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 500;
+    font-family: 'Google Sans', arial, sans-serif;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.google-login-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.google-login-btn:hover {
+    background: #f7f8f8;
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3);
+    transform: translateY(-1px);
+}
+
+.google-login-btn:active {
+    background: #eff1f2;
+    transform: translateY(0);
+}
+
+/* ===== Login Error ===== */
+.login-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--danger);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: var(--radius-md);
+    width: 100%;
+}
+
+.login-error svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}

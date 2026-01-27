@@ -19,7 +19,9 @@ try {
 
 const db = firebase.firestore();
 const storage = firebase.storage();
+const auth = firebase.auth();
 const PROMPT_COLLECTION = 'prompts';
+const ALLOWED_EMAIL = 'cooperfu.615@gmail.com';
 
 // ===== Connection Test (Requested) =====
 
@@ -35,9 +37,17 @@ let editingId = null;
 let deleteId = null;
 let modalVersions = [];
 let activeModalTabIdx = 0;
+let currentUser = null;
 
 // ===== DOM Elements =====
 const elements = {
+    // Auth Elements
+    loginOverlay: document.getElementById('loginOverlay'),
+    googleLoginBtn: document.getElementById('googleLoginBtn'),
+    loginError: document.getElementById('loginError'),
+    logoutBtn: document.getElementById('logoutBtn'),
+
+    // Existing Elements
     searchInput: document.getElementById('searchInput'),
     addBtn: document.getElementById('addBtn'),
     cardsContainer: document.getElementById('cardsContainer'),
@@ -793,14 +803,70 @@ function updatePreview(src) {
 async function init() {
 
 
-    // 2. Subscribe
-    subscribeToPrompts();
+    // 2. Subscribe (Moved to Auth State Listener)
+    // subscribeToPrompts();
 
-    // 3. Migrate
-    await migrateLocalStorage();
+    // 3. Migrate (Moved to Auth State Listener)
+    // await migrateLocalStorage();
 
-    // 4. Setup Listeners
     initEventListeners();
+    initAuth();
 }
+
+// ===== Authentication Logic =====
+function initAuth() {
+    // Auth State Listener
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            console.log("User signed in:", user.email);
+            if (user.email === ALLOWED_EMAIL) {
+                // Authorized
+                currentUser = user;
+                elements.loginOverlay.classList.remove('active');
+                elements.logoutBtn.style.display = 'flex';
+                elements.loginError.style.display = 'none';
+
+                // Initialize Data
+                subscribeToPrompts();
+                await migrateLocalStorage();
+            } else {
+                // Unauthorized
+                console.warn("Unauthorized access attempt:", user.email);
+                elements.loginError.style.display = 'flex';
+                elements.loginError.querySelector('span').textContent = `權限不足：${user.email} 無法存取`;
+                // Force sign out from app logic perspective but keep them in "limbo" or sign out?
+                // Better: keep overlay active, show error.
+            }
+        } else {
+            console.log("User signed out");
+            currentUser = null;
+            elements.loginOverlay.classList.add('active');
+            elements.logoutBtn.style.display = 'none';
+            elements.loginError.style.display = 'none';
+            // Clear sensitive data from UI if needed
+            elements.cardsContainer.innerHTML = '';
+        }
+    });
+
+    // Login Button
+    elements.googleLoginBtn.addEventListener('click', () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).catch((error) => {
+            console.error("Login failed:", error);
+            alert("登入失敗：" + error.message);
+        });
+    });
+
+    // Logout Button
+    elements.logoutBtn.addEventListener('click', () => {
+        auth.signOut().then(() => {
+            showToast('已安全登出');
+        }).catch((error) => {
+            console.error("Logout failed:", error);
+        });
+    });
+}
+
+
 
 document.addEventListener('DOMContentLoaded', init);
