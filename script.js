@@ -262,8 +262,10 @@ function openModal(isEdit = false, prompt = null) {
         elements.promptTags.value = formatTags(prompt.tags);
         elements.promptImage.value = prompt.imageUrl || '';
         modalVersions = JSON.parse(JSON.stringify(prompt.versions));
+        updatePreview(prompt.imageUrl);
     } else {
         modalVersions = [{ label: '通用', content: '' }];
+        updatePreview('');
     }
 
     activeModalTabIdx = 0;
@@ -272,14 +274,27 @@ function openModal(isEdit = false, prompt = null) {
     elements.modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     setTimeout(() => elements.promptTitle.focus(), 100);
+
+    // Capture initial state for dirty check
+    // Timeout ensuring values are set
+    setTimeout(() => {
+        initialFormState = getFormState();
+    }, 50);
 }
 
-function closeModal() {
+function closeModal(force = false) {
+    // Note: The 'force' parameter is mainly used by the caller (handleCloseAttempt)
+    // to bypass the check, but here we just execute the close logic.
+
     elements.modalOverlay.classList.remove('active');
     document.body.style.overflow = '';
     editingId = null;
     modalVersions = [];
     activeModalTabIdx = 0;
+    initialFormState = null;
+
+    // Clear preview
+    updatePreview('');
 }
 
 function openDeleteModal(id) {
@@ -668,10 +683,25 @@ function handleConfirmDelete() {
 // ===== Event Listeners =====
 function initEventListeners() {
     elements.addBtn.addEventListener('click', () => openModal());
-    elements.modalClose.addEventListener('click', closeModal);
-    elements.cancelBtn.addEventListener('click', closeModal);
+
+    // Updated Close Logic with Persistence Check
+    const handleCloseAttempt = () => {
+        if (isFormDirty()) {
+            if (confirm("您有未儲存的變更，確定要放棄並關閉嗎？")) {
+                closeModal(true); // Force close
+            }
+        } else {
+            closeModal(true);
+        }
+    };
+
+    elements.modalClose.addEventListener('click', handleCloseAttempt);
+    elements.cancelBtn.addEventListener('click', handleCloseAttempt);
+
+    // Overlay click no longer closes the drawer (Persistence)
+    // elements.modalOverlay.addEventListener('click', ...); // REMOVED
+
     elements.addTabBtn.addEventListener('click', addModalTab);
-    elements.modalOverlay.addEventListener('click', (e) => { if (e.target === elements.modalOverlay) closeModal(); });
 
     elements.promptForm.addEventListener('submit', handleFormSubmit);
     elements.cardsContainer.addEventListener('click', handleCardAction);
@@ -693,9 +723,70 @@ function initEventListeners() {
         if (e.key === 'Escape') {
             if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
             else if (elements.deleteModalOverlay.classList.contains('active')) closeDeleteModal();
-            else if (elements.modalOverlay.classList.contains('active')) closeModal();
+            else if (elements.modalOverlay.classList.contains('active')) handleCloseAttempt();
         }
     });
+
+    // Image Preview Listeners
+    if (elements.imageInput) {
+        elements.imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const objectUrl = URL.createObjectURL(file);
+                updatePreview(objectUrl);
+            } else {
+                // If file cleared, fallback to URL input or clear
+                updatePreview(elements.promptImage.value);
+            }
+        });
+    }
+
+    if (elements.promptImage) {
+        elements.promptImage.addEventListener('input', (e) => {
+            // Only use URL if no file is selected
+            if (!elements.imageInput.files.length) {
+                updatePreview(e.target.value);
+            }
+        });
+    }
+}
+
+// ===== Dirty State Tracking =====
+let initialFormState = null;
+
+function getFormState() {
+    return {
+        title: elements.promptTitle.value.trim(),
+        tags: elements.promptTags.value.trim(),
+        imageInput: elements.imageInput.value, // File path string (fake)
+        imageUrl: elements.promptImage.value.trim(),
+        versions: JSON.stringify(modalVersions)
+    };
+}
+
+function isFormDirty() {
+    if (!initialFormState) return false;
+    const currentState = getFormState();
+    return JSON.stringify(currentState) !== JSON.stringify(initialFormState);
+}
+
+// ===== Image Preview Logic =====
+const previewElements = {
+    container: document.getElementById('previewContainer'),
+    image: document.getElementById('previewImage'),
+    placeholder: document.getElementById('previewPlaceholder')
+};
+
+function updatePreview(src) {
+    if (!src || src.trim() === '') {
+        previewElements.image.style.display = 'none';
+        previewElements.image.src = '';
+        previewElements.placeholder.style.display = 'flex';
+    } else {
+        previewElements.image.src = src;
+        previewElements.image.style.display = 'block';
+        previewElements.placeholder.style.display = 'none';
+    }
 }
 
 // ===== Initialize App =====

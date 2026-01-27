@@ -455,17 +455,16 @@ body {
     color: var(--text-muted);
 }
 
-/* ===== Modal ===== */
+/* ===== Side Drawer (Replaces Modal) ===== */
 .modal-overlay {
     position: fixed;
     inset: 0;
     z-index: 1000;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(4px);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
+    justify-content: flex-end;
+    /* Align drawer to right */
     opacity: 0;
     visibility: hidden;
     transition: all var(--transition-normal);
@@ -476,43 +475,102 @@ body {
     visibility: visible;
 }
 
-.modal {
-    width: 100%;
-    max-width: 560px;
-    max-height: 90vh;
-    overflow-y: auto;
+.drawer {
+    width: 85%;
+    max-width: 1600px;
+    /* Wider to accommodate 2 columns comfortably */
+    height: 100vh;
     background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
-    transform: scale(0.9) translateY(20px);
-    transition: all var(--transition-normal);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Smooth ease-out */
 }
 
-.modal-overlay.active .modal {
-    transform: scale(1) translateY(0);
+.modal-overlay.active .drawer {
+    transform: translateX(0);
 }
 
-.modal-small {
-    max-width: 400px;
+.drawer-container {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* --- Left Column: Image Preview --- */
+.drawer-left {
+    width: 50%;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-right: 1px solid var(--border-color);
+}
+
+.preview-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    overflow: hidden;
+}
+
+.preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.preview-icon {
+    font-size: 3rem;
+}
+
+/* --- Right Column: Form --- */
+.drawer-right {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-card);
 }
 
 .modal-header {
+    flex-shrink: 0;
+    /* Keep header fixed at top */
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1.5rem;
     border-bottom: 1px solid var(--border-color);
+    background: var(--bg-card);
+    /* Ensure bg covers scrolling content */
+    z-index: 10;
 }
 
 .modal-header h2 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .modal-close {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -524,14 +582,22 @@ body {
     transition: all var(--transition-fast);
 }
 
-.modal-close svg {
-    width: 20px;
-    height: 20px;
-}
-
 .modal-close:hover {
     background: var(--bg-secondary);
-    color: var(--text-primary);
+    color: var(--danger);
+    /* Close button becomes red on hover */
+}
+
+.modal-close svg {
+    width: 24px;
+    height: 24px;
+}
+
+.modal-form {
+    flex-grow: 1;
+    overflow-y: auto;
+    /* Allow form scrolling */
+    padding: 2rem;
 }
 
 .modal-body {
@@ -542,6 +608,37 @@ body {
     color: var(--text-secondary);
     line-height: 1.6;
 }
+
+/* Responsive Adjustments for Drawer */
+@media (max-width: 1024px) {
+    .drawer {
+        width: 100%;
+        /* Full width on smaller desktops/tablets */
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .drawer-container {
+        flex-direction: column;
+        /* Stack on mobile */
+    }
+
+    .drawer-left {
+        width: 100%;
+        height: 200px;
+        /* Fixed height for image area on mobile */
+        flex-shrink: 0;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .drawer-right {
+        width: 100%;
+        height: calc(100% - 200px);
+    }
+}
+
 
 /* ===== Form ===== */
 .modal-form {

@@ -65,62 +65,78 @@
         </div>
     </main>
 
-    <!-- Add/Edit Modal -->
+    <!-- Add/Edit Drawer (Side Panel) -->
     <div class="modal-overlay" id="modalOverlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 id="modalTitle">新增咒語</h2>
-                <button class="modal-close" id="modalClose" title="關閉">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                </button>
-            </div>
-            <form class="modal-form" id="promptForm">
-                <div class="form-group">
-                    <div class="label-with-action">
-                        <label for="promptTitle">標題 *</label>
-                        <button type="button" class="ai-generate-btn" id="aiGenerateBtn">
-                            <span class="ai-btn-icon">✨</span>
-                            <span class="ai-btn-text">自動生成</span>
+        <div class="drawer">
+            <div class="drawer-container">
+                <!-- Left Column: Image Preview -->
+                <div class="drawer-left">
+                    <div class="preview-container" id="previewContainer">
+                        <div class="preview-placeholder" id="previewPlaceholder">
+                            <span class="preview-icon">🖼️</span>
+                            <p>圖片預覽區域</p>
+                        </div>
+                        <img src="" alt="Preview" class="preview-image" id="previewImage" style="display: none;">
+                    </div>
+                </div>
+
+                <!-- Right Column: Form -->
+                <div class="drawer-right">
+                    <div class="modal-header">
+                        <h2 id="modalTitle">新增咒語</h2>
+                        <button class="modal-close" id="modalClose" title="關閉">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
                         </button>
                     </div>
-                    <input type="text" id="promptTitle" required placeholder="例如：產品描述生成器">
-                </div>
-                <div class="form-group">
-                    <div class="tabs-container form-tabs">
-                        <div class="tabs-header">
-                            <div class="tabs-list" id="modalTabsList">
-                                <!-- Tab buttons will be injected here -->
+                    <form class="modal-form" id="promptForm">
+                        <div class="form-group">
+                            <div class="label-with-action">
+                                <label for="promptTitle">標題 *</label>
+                                <button type="button" class="ai-generate-btn" id="aiGenerateBtn">
+                                    <span class="ai-btn-icon">✨</span>
+                                    <span class="ai-btn-text">自動生成</span>
+                                </button>
                             </div>
-                            <button type="button" class="add-tab-btn" id="addTabBtn" title="新增版本">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                            </button>
+                            <input type="text" id="promptTitle" required placeholder="例如：產品描述生成器">
                         </div>
-                        <div class="tabs-panels" id="modalTabsPanels">
-                            <!-- Tab panels will be injected here -->
+                        <div class="form-group">
+                            <div class="tabs-container form-tabs">
+                                <div class="tabs-header">
+                                    <div class="tabs-list" id="modalTabsList">
+                                        <!-- Tab buttons will be injected here -->
+                                    </div>
+                                    <button type="button" class="add-tab-btn" id="addTabBtn" title="新增版本">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19" />
+                                            <line x1="5" y1="12" x2="19" y2="12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="tabs-panels" id="modalTabsPanels">
+                                    <!-- Tab panels will be injected here -->
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                        <div class="form-group">
+                            <label for="promptTags">分類標籤</label>
+                            <input type="text" id="promptTags" placeholder="用逗號分隔，例如：寫作, 行銷, GPT-4">
+                        </div>
+                        <div class="form-group">
+                            <label for="promptImage">範例圖片（上傳或網址）</label>
+                            <input type="file" id="imageInput" accept="image/*" class="file-input">
+                            <input type="url" id="promptImage" placeholder="或是貼上圖片連結...">
+                        </div>
+                        <input type="hidden" id="promptId">
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                            <button type="submit" class="btn btn-primary">儲存</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <label for="promptTags">分類標籤</label>
-                    <input type="text" id="promptTags" placeholder="用逗號分隔，例如：寫作, 行銷, GPT-4">
-                </div>
-                <div class="form-group">
-                    <label for="promptImage">範例圖片（上傳或網址）</label>
-                    <input type="file" id="imageInput" accept="image/*" class="file-input">
-                    <input type="url" id="promptImage" placeholder="或是貼上圖片連結...">
-                </div>
-                <input type="hidden" id="promptId">
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
-                    <button type="submit" class="btn btn-primary">儲存</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
