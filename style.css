@@ -994,20 +994,59 @@ body {
     margin-bottom: 0.75rem;
 }
 
-.delete-version-btn {
-    color: var(--danger);
-    font-size: 0.8rem;
-    text-decoration: underline;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    margin-top: 0.5rem;
-    display: inline-block;
+/* Version Control Buttons */
+.version-controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
 }
 
-.delete-version-btn:hover {
-    color: var(--danger-hover);
+.version-control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    flex: 1;
+}
+
+.version-control-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.copy-btn-version {
+    background: transparent;
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.copy-btn-version:hover {
+    background: var(--accent-gradient);
+    border-color: transparent;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.clear-btn-version {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
+.clear-btn-version:hover {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+    transform: translateY(-1px);
 }
 
 /* Card Specific Tabs */
