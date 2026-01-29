@@ -671,7 +671,7 @@ body {
 }
 
 .form-group textarea {
-    min-height: 150px;
+    min-height: 400px;
     resize: vertical;
     font-family: var(--font-mono);
     line-height: 1.6;
