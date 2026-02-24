@@ -149,6 +149,35 @@ body {
     transform: rotate(45deg);
 }
 
+/* ===== Backup Button ===== */
+.backup-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 1rem;
+    height: 44px;
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity var(--transition-normal), transform var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.backup-btn:hover:not(:disabled) {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+
+.backup-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .logo {
     font-size: 1.5rem;
     font-weight: 700;

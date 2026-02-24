@@ -30,6 +30,7 @@
                     </svg>
                     <input type="text" id="searchInput" class="search-input" placeholder="搜尋標題或標籤...">
                 </div>
+                <button class="backup-btn" id="backupBtn" title="全部備份">📥 全部備份</button>
                 <button class="settings-btn" id="settingsBtn" title="設定">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3" />
@@ -235,6 +236,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <!-- JSZip for backup feature -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <script src="script.js"></script>
 </body>

@@ -77,7 +77,8 @@ const elements = {
     apiKeyInput: document.getElementById('apiKeyInput'),
     saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
     cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
-    aiGenerateBtn: document.getElementById('aiGenerateBtn')
+    aiGenerateBtn: document.getElementById('aiGenerateBtn'),
+    backupBtn: document.getElementById('backupBtn')
 };
 
 // ===== Firestore Logic (Compat Syntax) =====
@@ -757,6 +758,7 @@ function initEventListeners() {
     elements.settingsModalOverlay.addEventListener('click', (e) => { if (e.target === elements.settingsModalOverlay) closeSettingsModal(); });
 
     elements.aiGenerateBtn.addEventListener('click', generateTitleWithAI);
+    elements.backupBtn.addEventListener('click', backupAll);
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -897,5 +899,100 @@ function initAuth() {
 }
 
 
+// ===== Backup Feature =====
+async function backupAll() {
+    const btn = elements.backupBtn;
+    btn.textContent = '打包下載中...';
+    btn.disabled = true;
+
+    let corsFailedImages = [];
+
+    try {
+        // 1. Fetch all data from Firestore
+        const snapshot = await db.collection(PROMPT_COLLECTION).orderBy('createdAt', 'desc').get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // 2. Build JSON backup string
+        const jsonContent = JSON.stringify(data, null, 2);
+
+        // 3. Build TXT backup string
+        const txtLines = [];
+        for (const prompt of data) {
+            txtLines.push('=========================================');
+            txtLines.push(`標題：${prompt.title || ''}`);
+            txtLines.push('=========================================');
+
+            const versions = prompt.versions || [];
+            for (const ver of versions) {
+                txtLines.push(`【${ver.label || '通用'}】`);
+                // Preserve user's original line-breaks exactly
+                txtLines.push(ver.content || '');
+                txtLines.push('');
+            }
+
+            const tags = (prompt.tags || []).join(', ');
+            txtLines.push(`標籤：${tags}`);
+            txtLines.push('');
+            txtLines.push('');
+        }
+        const txtContent = txtLines.join('\n');
+
+        // 4. Create ZIP and add text files
+        const zip = new JSZip();
+        zip.file('system_backup.json', jsonContent);
+        zip.file('Prompts_Backup.txt', txtContent);
+
+        // 5. Attempt to fetch images (best-effort, CORS failures are skipped)
+        const imgFolder = zip.folder('images');
+        for (const prompt of data) {
+            const versions = prompt.versions || [];
+            for (const ver of versions) {
+                const imageUrl = ver.imageUrl || '';
+                if (!imageUrl) continue;
+
+                // Derive a safe filename from title + label
+                const safeTitle = (prompt.title || 'prompt').replace(/[\\/:*?"<>|\s]/g, '_');
+                const safeLabel = (ver.label || '通用').replace(/[\\/:*?"<>|\s]/g, '_');
+                const filename = `${safeTitle}_${safeLabel}.jpg`;
+
+                try {
+                    const response = await fetch(imageUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const blob = await response.blob();
+                    imgFolder.file(filename, blob);
+                } catch (err) {
+                    console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename}`, err);
+                    corsFailedImages.push(filename);
+                }
+            }
+        }
+
+        // 6. Generate and trigger ZIP download
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Prompt_Backup.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // 7. Alert result
+        let msg = '備份成功！\nPrompt_Backup.zip 已下載。';
+        if (corsFailedImages.length > 0) {
+            msg += `\n\n注意：以下 ${corsFailedImages.length} 張圖片因 CORS 限制無法下載，已跳過：\n`;
+            msg += corsFailedImages.join('\n');
+        }
+        alert(msg);
+
+    } catch (err) {
+        console.error('備份失敗：', err);
+        alert('備份失敗，請確認網路連線與登入狀態。\n錯誤：' + err.message);
+    } finally {
+        btn.textContent = '📥 全部備份';
+        btn.disabled = false;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', init);
