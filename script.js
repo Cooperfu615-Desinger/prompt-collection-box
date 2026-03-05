@@ -688,6 +688,72 @@ function renderModalTagChips() {
     });
 }
 
+function openTagPickerModal() {
+    renderTagPicker();
+    elements.tagPickerModalOverlay.classList.add('active');
+}
+
+function closeTagPickerModal() {
+    elements.tagPickerModalOverlay.classList.remove('active');
+}
+
+function renderTagPicker() {
+    const container = elements.tagPickerContent;
+    if (!container) return;
+    container.innerHTML = '';
+
+    const pool = getFullTagPool();
+
+    for (const [category, tags] of Object.entries(pool)) {
+        if (!tags || tags.length === 0) continue;
+
+        const catDiv = document.createElement('div');
+        catDiv.className = 'filter-category';
+
+        const catTitle = document.createElement('div');
+        catTitle.className = 'filter-category-title';
+        catTitle.textContent = category;
+        catDiv.appendChild(catTitle);
+
+        const tagList = document.createElement('div');
+        tagList.className = 'filter-tag-list';
+
+        tags.forEach(tag => {
+            const btn = document.createElement('button');
+            const isSelected = modalTags.includes(tag);
+            btn.className = `filter-tag-btn ${isSelected ? 'selected' : ''}`;
+            btn.textContent = tag;
+
+            // Apply category color if selected
+            const colors = TAG_CATEGORY_COLORS[category];
+            if (colors && isSelected) {
+                btn.style.background = colors.bg;
+                btn.style.borderColor = colors.border;
+                btn.style.color = colors.text;
+            }
+
+            btn.onclick = () => togglePickerTag(tag);
+            tagList.appendChild(btn);
+        });
+
+        catDiv.appendChild(tagList);
+        container.appendChild(catDiv);
+    }
+}
+
+function togglePickerTag(tag) {
+    const index = modalTags.indexOf(tag);
+    if (index === -1) {
+        modalTags.push(tag);
+    } else {
+        modalTags.splice(index, 1);
+    }
+    renderModalTagChips();
+    // Also re-render the picker so the clicked button immediately reflects its selected state
+    renderTagPicker();
+}
+
+
 // ===== Tag Filter Sidebar =====
 function populateTagFilter() {
     const container = elements.filterCategoriesContainer;
