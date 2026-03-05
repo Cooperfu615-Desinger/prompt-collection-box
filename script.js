@@ -945,25 +945,21 @@ async function backupAll() {
         // 5. Attempt to fetch images (best-effort, CORS failures are skipped)
         const imgFolder = zip.folder('images');
         for (const prompt of data) {
-            const versions = prompt.versions || [];
-            for (const ver of versions) {
-                const imageUrl = ver.imageUrl || '';
-                if (!imageUrl) continue;
+            const imageUrl = prompt.imageUrl || '';
+            if (!imageUrl) continue;
 
-                // Derive a safe filename from title + label
-                const safeTitle = (prompt.title || 'prompt').replace(/[\\/:*?"<>|\s]/g, '_');
-                const safeLabel = (ver.label || '通用').replace(/[\\/:*?"<>|\s]/g, '_');
-                const filename = `${safeTitle}_${safeLabel}.jpg`;
+            // Derive a safe filename from title
+            const safeTitle = (prompt.title || 'prompt').replace(/[\\/:*?"<>|\s]/g, '_');
+            const filename = `${safeTitle}.jpg`;
 
-                try {
-                    const response = await fetch(imageUrl);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const blob = await response.blob();
-                    imgFolder.file(filename, blob);
-                } catch (err) {
-                    console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename}`, err);
-                    corsFailedImages.push(filename);
-                }
+            try {
+                const response = await fetch(imageUrl);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                imgFolder.file(filename, blob);
+            } catch (err) {
+                console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename}`, err);
+                corsFailedImages.push(filename);
             }
         }
 
