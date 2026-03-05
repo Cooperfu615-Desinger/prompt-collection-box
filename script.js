@@ -83,9 +83,12 @@ const elements = {
     promptForm: document.getElementById('promptForm'),
     promptId: document.getElementById('promptId'),
     promptTitle: document.getElementById('promptTitle'),
-    promptTags: document.getElementById('promptTags'),
     modalTagChips: document.getElementById('modalTagChips'),
-    addTagBtn: document.getElementById('addTagBtn'),
+    openTagPickerBtn: document.getElementById('openTagPickerBtn'),
+    tagPickerModalOverlay: document.getElementById('tagPickerModalOverlay'),
+    closeTagPickerBtn: document.getElementById('closeTagPickerBtn'),
+    tagPickerContent: document.getElementById('tagPickerContent'),
+    tagPickerDoneBtn: document.getElementById('tagPickerDoneBtn'),
     modalTabsList: document.getElementById('modalTabsList'),
     modalTabsPanels: document.getElementById('modalTabsPanels'),
     addTabBtn: document.getElementById('addTabBtn'),
@@ -411,6 +414,11 @@ function openModal(isEdit = false, prompt = null) {
     editingId = isEdit && prompt ? prompt.id : null;
     elements.modalTitle.textContent = isEdit ? '編輯咒語' : '新增咒語';
     elements.promptForm.reset();
+    elements.promptId.value = '';
+
+    // Clear chips
+    modalTags = [];
+    renderModalTagChips();
 
     if (isEdit && prompt) {
         elements.promptTitle.value = prompt.title;
@@ -420,13 +428,12 @@ function openModal(isEdit = false, prompt = null) {
             _pendingFile: null
         }));
     } else {
-        modalTags = [];
         modalVariants = [{ tabName: '通用', prompt: '', imageUrl: null, _pendingFile: null }];
     }
 
     activeModalTabIdx = 0;
     renderModalTabs();
-    renderModalTagChips();
+    renderModalTagChips(); // Re-render after potentially populating modalTags
 
     elements.modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -448,7 +455,6 @@ function closeModal(force = false) {
     initialFormState = null;
     updatePreview('');
     elements.modalTagChips.innerHTML = '';
-    elements.promptTags.value = '';
 }
 
 function openDeleteModal(id) {
@@ -668,22 +674,18 @@ function renderModalTagChips() {
         const categoryLabel = category ? `<span class="chip-cat">${category}</span>` : '';
         chip.innerHTML = `${categoryLabel}${escapeHtml(tag)}<button type="button" class="chip-remove" data-idx="${idx}">&times;</button>`;
         chip.querySelector('.chip-remove').onclick = () => {
-            modalTags.splice(idx, 1);
-            renderModalTagChips();
+            const index = modalTags.indexOf(tag); // Find current index as idx might be stale after re-renders
+            if (index > -1) {
+                modalTags.splice(index, 1);
+                renderModalTagChips();
+                // If the picker is open, re-render it to update styles
+                if (elements.tagPickerModalOverlay.classList.contains('active')) {
+                    renderTagPicker();
+                }
+            }
         };
         elements.modalTagChips.appendChild(chip);
     });
-}
-
-function addTagFromInput() {
-    const input = elements.promptTags;
-    const raw = input.value.trim();
-    if (!raw) return;
-    // Support comma-separated batch input
-    const newTags = raw.split(',').map(t => t.trim()).filter(t => t && !modalTags.includes(t));
-    modalTags.push(...newTags);
-    renderModalTagChips();
-    input.value = '';
 }
 
 // ===== Tag Filter Sidebar =====
@@ -1112,14 +1114,12 @@ function initEventListeners() {
     elements.promptForm.addEventListener('submit', handleFormSubmit);
     elements.cardsContainer.addEventListener('click', handleCardAction);
 
-
-    // Tag input in modal
-    elements.addTagBtn.addEventListener('click', addTagFromInput);
-    elements.promptTags.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addTagFromInput();
-        }
+    // Tag Picker Modal Events
+    elements.openTagPickerBtn.addEventListener('click', openTagPickerModal);
+    elements.closeTagPickerBtn.addEventListener('click', closeTagPickerModal);
+    elements.tagPickerDoneBtn.addEventListener('click', closeTagPickerModal);
+    elements.tagPickerModalOverlay.addEventListener('click', (e) => {
+        if (e.target === elements.tagPickerModalOverlay) closeTagPickerModal();
     });
 
     elements.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
@@ -1141,7 +1141,8 @@ function initEventListeners() {
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
+            if (elements.tagPickerModalOverlay.classList.contains('active')) closeTagPickerModal();
+            else if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
             else if (elements.deleteModalOverlay.classList.contains('active')) closeDeleteModal();
             else if (elements.modalOverlay.classList.contains('active')) handleCloseAttempt();
             else if (document.body.classList.contains('filter-sidebar-open')) window.toggleFilterSidebar();

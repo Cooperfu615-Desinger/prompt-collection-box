@@ -163,7 +163,8 @@
                                     <div class="tabs-list" id="modalTabsList">
                                         <!-- Tab buttons will be injected here -->
                                     </div>
-                                    <button type="button" class="add-tab-btn" id="addTabBtn" title="新增版本">
+                                    <button type="button" class="add-tab-btn" id="addTabBtn" title="新增版本"
+                                        aria-label="新增版本">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <line x1="12" y1="5" x2="12" y2="19" />
                                             <line x1="5" y1="12" x2="19" y2="12" />
@@ -176,13 +177,17 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>分類標籤</label>
+                            <div class="label-with-action">
+                                <label>分類標籤</label>
+                                <button type="button" class="add-tag-picker-btn" id="openTagPickerBtn" title="選擇標籤">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19" />
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                    </svg>
+                                </button>
+                            </div>
                             <div class="tag-chips-container" id="modalTagChips">
                                 <!-- Tag chips rendered by JS -->
-                            </div>
-                            <div class="tag-input-row">
-                                <input type="text" id="promptTags" placeholder="輸入標籤後按 Enter 新增...">
-                                <button type="button" class="tag-add-btn" id="addTagBtn">新增</button>
                             </div>
                         </div>
                         <input type="hidden" id="promptId">
@@ -286,7 +291,30 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <!-- JSZip for backup feature -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Tag Picker Modal -->
+    <div class="modal-overlay" id="tagPickerModalOverlay">
+        <div class="modal-container tag-picker-modal">
+            <div class="modal-header">
+                <h2>選擇標籤</h2>
+                <button class="modal-close" id="closeTagPickerBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="tagPickerContent" class="tag-picker-content">
+                    <!-- Categorized tags injected via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="tagPickerDoneBtn">完成</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- Scripts -->
     <script src="script.js"></script>
 </body>
 
