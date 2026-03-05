@@ -21,7 +21,26 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 const auth = firebase.auth();
 const PROMPT_COLLECTION = 'prompts';
+const TAG_POOL_COLLECTION = 'tagPool';
 const ALLOWED_EMAIL = 'cooperfu.615@gmail.com';
+
+// ===== Fixed Tag Pool (5 Categories) =====
+const FIXED_TAG_POOL = {
+    '主體': ['單人', '雙人', '三人以上', '其他'],
+    '服裝': ['內衣', '泳裝', '巴洛克', '龐克', 'BDSM', '休閒', '運動', '水手服', '制服'],
+    '場景': ['廢墟', '咖啡廳', '酒吧', '公園', '臥室', '浴室', '城堡', '巷弄', '街道', '室內', '戶外'],
+    '風格': ['攝影大師', '單眼', '手機', '電影感', '2D', '3D', '電影'],
+    '光影': ['自然', '過曝', '低光源', '側光']
+};
+
+// Tag category color map
+const TAG_CATEGORY_COLORS = {
+    '主體': { bg: 'rgba(59, 130, 246, 0.18)', border: 'rgba(59, 130, 246, 0.45)', text: '#60a5fa' },
+    '服裝': { bg: 'rgba(236, 72, 153, 0.18)', border: 'rgba(236, 72, 153, 0.45)', text: '#f472b6' },
+    '場景': { bg: 'rgba(34, 197, 94, 0.18)', border: 'rgba(34, 197, 94, 0.45)', text: '#4ade80' },
+    '風格': { bg: 'rgba(251, 191, 36, 0.18)', border: 'rgba(251, 191, 36, 0.45)', text: '#fbbf24' },
+    '光影': { bg: 'rgba(168, 85, 247, 0.18)', border: 'rgba(168, 85, 247, 0.45)', text: '#c084fc' }
+};
 
 // ===== Data Model =====
 const LOCAL_STORAGE_KEY = 'prompt-collection-box';
@@ -40,6 +59,7 @@ let initialFormState = null;
 let currentSortMode = 'updatedAt';
 let modalTags = []; // Current tags in modal editor
 let selectedFilterTags = []; // Active filter tags on main screen
+let customTags = {}; // Custom tags from Firestore, same structure as FIXED_TAG_POOL
 
 // ===== DOM Elements =====
 const elements = {
@@ -462,6 +482,75 @@ function handleSaveApiKey() {
     closeSettingsModal();
 }
 
+// ===== Tag Pool Helpers =====
+function getFullTagPool() {
+    const pool = JSON.parse(JSON.stringify(FIXED_TAG_POOL));
+    for (const [cat, tags] of Object.entries(customTags)) {
+        if (!pool[cat]) pool[cat] = [];
+        tags.forEach(t => { if (!pool[cat].includes(t)) pool[cat].push(t); });
+    }
+    return pool;
+}
+
+function getTagCategory(tagName) {
+    const pool = getFullTagPool();
+    for (const [cat, tags] of Object.entries(pool)) {
+        if (tags.includes(tagName)) return cat;
+    }
+    return null;
+}
+
+function getAllTagNames() {
+    const pool = getFullTagPool();
+    return Object.values(pool).flat();
+}
+
+// Subscribe to custom tags from Firestore
+function subscribeToCustomTags() {
+    db.collection(TAG_POOL_COLLECTION).onSnapshot((snapshot) => {
+        customTags = {};
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            // Each doc: { category: 'xxx', tags: ['a','b'] }
+            if (data.category && Array.isArray(data.tags)) {
+                if (!customTags[data.category]) customTags[data.category] = [];
+                data.tags.forEach(t => {
+                    if (!customTags[data.category].includes(t)) customTags[data.category].push(t);
+                });
+            }
+        });
+        console.log('Custom tags loaded:', customTags);
+        populateTagFilter();
+    }, (error) => {
+        console.error('Custom tags subscription error:', error);
+    });
+}
+
+async function addCustomTag(category, tagName) {
+    const trimmed = tagName.trim();
+    if (!trimmed) return;
+    // Check if it already exists in fixed pool
+    const pool = getFullTagPool();
+    if (pool[category] && pool[category].includes(trimmed)) {
+        showToast('此標籤已存在');
+        return;
+    }
+    try {
+        // Find or create the category doc
+        const snapshot = await db.collection(TAG_POOL_COLLECTION).where('category', '==', category).get();
+        if (snapshot.empty) {
+            await db.collection(TAG_POOL_COLLECTION).add({ category, tags: [trimmed] });
+        } else {
+            const docRef = snapshot.docs[0].ref;
+            await docRef.update({ tags: firebase.firestore.FieldValue.arrayUnion(trimmed) });
+        }
+        showToast(`已新增標籤「${trimmed}」到「${category}」`);
+    } catch (err) {
+        console.error('Add custom tag error:', err);
+        showToast('新增標籤失敗');
+    }
+}
+
 // ===== AI Title + Tag Generation =====
 function setGenerateBtnLoading(isLoading) {
     const btn = elements.aiGenerateBtn;
@@ -496,6 +585,12 @@ async function generateTitleWithAI() {
 
     setGenerateBtnLoading(true);
 
+    // Build the full tag pool for AI prompt
+    const pool = getFullTagPool();
+    const tagListText = Object.entries(pool)
+        .map(([cat, tags]) => `  - ${cat}: ${tags.join(', ')}`)
+        .join('\n');
+
     try {
         const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
             method: 'POST',
@@ -507,13 +602,11 @@ async function generateTitleWithAI() {
 
 規則：
 1. "title"：繁體中文精簡摘要標題，不超過 50 字，不含引號。
-2. "tags"：一個字串陣列，從以下 5 個維度萃取標籤（每個維度選出最具代表性的 1 個詞）：
-   - [人物] 例如：日系美女、歐美男模、動漫少女
-   - [服裝] 例如：蕾絲內衣、西裝、學生制服
-   - [場景] 例如：大學宿舍、東京街頭、攝影棚
-   - [底片/美術風格] 例如：Fujifilm 400H、賽博龐克、水彩風
-   - [攝影/鏡頭參數] 例如：85mm特寫、廣角全身、電影光
-   如果某個維度在內容中沒有明確提到，可以省略該維度的標籤。
+2. "tags"：一個字串陣列。你必須**嚴格**從以下固定標籤清單中挑選與 Prompt 內容相符的標籤。
+   **絕對禁止**生成清單以外的任何標籤。若某分類無相符項，則跳過該分類。
+
+固定標籤清單（按分類）：
+${tagListText}
 
 注意：只回傳純 JSON，不要加任何 markdown 格式或文字解釋。
 
@@ -540,8 +633,12 @@ ${allContent}`
         }
 
         if (parsed.tags && Array.isArray(parsed.tags)) {
-            // Merge AI tags with existing modal tags (no duplicates)
-            parsed.tags.forEach(tag => {
+            // Only accept tags that exist in the full tag pool
+            const validTagNames = getAllTagNames();
+            const filteredTags = parsed.tags.filter(t => validTagNames.includes(t.trim()));
+
+            // Replace existing modal tags with AI-generated ones (clean slate per AI run)
+            filteredTags.forEach(tag => {
                 const t = tag.trim();
                 if (t && !modalTags.includes(t)) {
                     modalTags.push(t);
@@ -564,8 +661,16 @@ function renderModalTagChips() {
     elements.modalTagChips.innerHTML = '';
     modalTags.forEach((tag, idx) => {
         const chip = document.createElement('span');
+        const category = getTagCategory(tag);
+        const colors = category ? TAG_CATEGORY_COLORS[category] : null;
         chip.className = 'tag-chip';
-        chip.innerHTML = `${escapeHtml(tag)}<button type="button" class="chip-remove" data-idx="${idx}">&times;</button>`;
+        if (colors) {
+            chip.style.background = colors.bg;
+            chip.style.borderColor = colors.border;
+            chip.style.color = colors.text;
+        }
+        const categoryLabel = category ? `<span class="chip-cat">${category}</span>` : '';
+        chip.innerHTML = `${categoryLabel}${escapeHtml(tag)}<button type="button" class="chip-remove" data-idx="${idx}">&times;</button>`;
         chip.querySelector('.chip-remove').onclick = () => {
             modalTags.splice(idx, 1);
             renderModalTagChips();
@@ -608,6 +713,26 @@ function updateFilterPlaceholder() {
     } else {
         elements.filterPlaceholder.style.display = 'none';
     }
+}
+
+// ===== Add Tag UI Logic =====
+function toggleAddTagPanel() {
+    const panel = document.getElementById('addTagPanel');
+    if (panel) panel.classList.toggle('active');
+}
+
+function handleAddCustomTag() {
+    const catSelect = document.getElementById('newTagCategory');
+    const nameInput = document.getElementById('newTagName');
+    if (!catSelect || !nameInput) return;
+    const category = catSelect.value;
+    const tagName = nameInput.value.trim();
+    if (!category || !tagName) {
+        showToast('請選擇分類並輸入標籤名稱');
+        return;
+    }
+    addCustomTag(category, tagName);
+    nameInput.value = '';
 }
 
 // ===== Storage Upload Logic =====
@@ -752,7 +877,12 @@ function createCardElement(prompt) {
     const activeVariant = prompt.variants[activeVariantIdx] || { prompt: '', imageUrl: null };
 
     const tagsHtml = prompt.tags.length > 0
-        ? `<div class="card-tags">${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
+        ? `<div class="card-tags">${prompt.tags.map(tag => {
+            const category = getTagCategory(tag);
+            const colors = category ? TAG_CATEGORY_COLORS[category] : null;
+            const style = colors ? `style="background:${colors.bg};border-color:${colors.border};color:${colors.text}"` : '';
+            return `<span class="tag" ${style}>${escapeHtml(tag)}</span>`;
+        }).join('')}</div>`
         : '';
 
     // Image from current variant
@@ -1046,6 +1176,7 @@ function initAuth() {
                 elements.loginError.style.display = 'none';
 
                 subscribeToPrompts();
+                subscribeToCustomTags();
                 await migrateLocalStorage();
             } else {
                 console.warn("Unauthorized access attempt:", user.email);

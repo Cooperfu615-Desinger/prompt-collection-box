@@ -32,6 +32,25 @@
                     </select>
                     <span class="filter-placeholder" id="filterPlaceholder">按標籤篩選...</span>
                 </div>
+                <button class="add-tag-toggle-btn" onclick="toggleAddTagPanel()" title="新增標籤至標籤庫">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    新增標籤
+                </button>
+                <div class="add-tag-panel" id="addTagPanel">
+                    <select id="newTagCategory" class="add-tag-select" title="選擇標籤分類">
+                        <option value="">選擇分類</option>
+                        <option value="主體">主體</option>
+                        <option value="服裝">服裝</option>
+                        <option value="場景">場景</option>
+                        <option value="風格">風格</option>
+                        <option value="光影">光影</option>
+                    </select>
+                    <input type="text" id="newTagName" class="add-tag-input" placeholder="輸入新標籤名稱...">
+                    <button class="add-tag-confirm-btn" onclick="handleAddCustomTag()">確認</button>
+                </div>
                 <button class="backup-btn" id="backupBtn" title="全部備份">📥 全部備份</button>
                 <button class="settings-btn" id="settingsBtn" title="設定">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
