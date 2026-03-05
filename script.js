@@ -38,6 +38,8 @@ let activeModalTabIdx = 0;
 let currentUser = null;
 let initialFormState = null;
 let currentSortMode = 'updatedAt';
+let modalTags = []; // Current tags in modal editor
+let selectedFilterTags = []; // Active filter tags on main screen
 
 // ===== DOM Elements =====
 const elements = {
@@ -48,7 +50,8 @@ const elements = {
     logoutBtn: document.getElementById('logoutBtn'),
 
     // Existing Elements
-    searchInput: document.getElementById('searchInput'),
+    tagFilterSelect: document.getElementById('tagFilterSelect'),
+    filterPlaceholder: document.getElementById('filterPlaceholder'),
     addBtn: document.getElementById('addBtn'),
     cardsContainer: document.getElementById('cardsContainer'),
     emptyState: document.getElementById('emptyState'),
@@ -59,6 +62,8 @@ const elements = {
     promptId: document.getElementById('promptId'),
     promptTitle: document.getElementById('promptTitle'),
     promptTags: document.getElementById('promptTags'),
+    modalTagChips: document.getElementById('modalTagChips'),
+    addTagBtn: document.getElementById('addTagBtn'),
     modalTabsList: document.getElementById('modalTabsList'),
     modalTabsPanels: document.getElementById('modalTabsPanels'),
     addTabBtn: document.getElementById('addTabBtn'),
@@ -119,6 +124,7 @@ function subscribeToPrompts() {
                 return normalizeToVariants(raw);
             });
             console.log(`Loaded ${prompts.length} prompts from Firestore.`);
+            populateTagFilter();
             renderCards();
         }, (error) => {
             console.error("Firestore Error (Snapshot):", error);
@@ -386,17 +392,19 @@ function openModal(isEdit = false, prompt = null) {
 
     if (isEdit && prompt) {
         elements.promptTitle.value = prompt.title;
-        elements.promptTags.value = formatTags(prompt.tags);
+        modalTags = [...(prompt.tags || [])];
         modalVariants = JSON.parse(JSON.stringify(prompt.variants)).map(v => ({
             ...v,
             _pendingFile: null
         }));
     } else {
+        modalTags = [];
         modalVariants = [{ tabName: '通用', prompt: '', imageUrl: null, _pendingFile: null }];
     }
 
     activeModalTabIdx = 0;
     renderModalTabs();
+    renderModalTagChips();
 
     elements.modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -413,9 +421,12 @@ function closeModal(force = false) {
     document.body.style.overflow = '';
     editingId = null;
     modalVariants = [];
+    modalTags = [];
     activeModalTabIdx = 0;
     initialFormState = null;
     updatePreview('');
+    elements.modalTagChips.innerHTML = '';
+    elements.promptTags.value = '';
 }
 
 function openDeleteModal(id) {
@@ -451,7 +462,7 @@ function handleSaveApiKey() {
     closeSettingsModal();
 }
 
-// ===== AI Title Generation =====
+// ===== AI Title + Tag Generation =====
 function setGenerateBtnLoading(isLoading) {
     const btn = elements.aiGenerateBtn;
     const textSpan = btn.querySelector('.ai-btn-text');
@@ -472,11 +483,14 @@ async function generateTitleWithAI() {
         return;
     }
 
-    const currentContent = modalVariants[activeModalTabIdx]?.prompt?.trim();
-    if (!currentContent) {
-        showToast('請先輸入咒語內容 (目前頁籤)');
-        const textarea = document.getElementById(`modal-variant-prompt-${activeModalTabIdx}`);
-        if (textarea) textarea.focus();
+    // Collect all variant content
+    const allContent = modalVariants
+        .map((v, i) => `【${v.tabName || 'Tab ' + (i + 1)}】\n${v.prompt}`)
+        .filter(s => s.trim())
+        .join('\n\n');
+
+    if (!allContent.trim()) {
+        showToast('請先輸入至少一個頁籤的內容');
         return;
     }
 
@@ -489,7 +503,22 @@ async function generateTitleWithAI() {
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: `請分析以下 Prompt 的內容，並生成一個繁體中文的精簡標題，限制在 50 字以內，不要包含引號或多餘解釋，直接回覆標題文字即可：\n\n${currentContent}`
+                        text: `你是一個 Prompt 分析專家。請分析以下所有頁籤的 Prompt 內容，並回傳一個 JSON 物件。
+
+規則：
+1. "title"：繁體中文精簡摘要標題，不超過 50 字，不含引號。
+2. "tags"：一個字串陣列，從以下 5 個維度萃取標籤（每個維度選出最具代表性的 1 個詞）：
+   - [人物] 例如：日系美女、歐美男模、動漫少女
+   - [服裝] 例如：蕾絲內衣、西裝、學生制服
+   - [場景] 例如：大學宿舍、東京街頭、攝影棚
+   - [底片/美術風格] 例如：Fujifilm 400H、賽博龐克、水彩風
+   - [攝影/鏡頭參數] 例如：85mm特寫、廣角全身、電影光
+   如果某個維度在內容中沒有明確提到，可以省略該維度的標籤。
+
+注意：只回傳純 JSON，不要加任何 markdown 格式或文字解釋。
+
+以下是所有頁籤的 Prompt 內容：
+${allContent}`
                     }]
                 }]
             })
@@ -497,19 +526,87 @@ async function generateTitleWithAI() {
 
         if (!response.ok) throw new Error(`API error: ${response.status}`);
         const data = await response.json();
-        const title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
-        if (title) {
-            elements.promptTitle.value = title.replace(/^["'「『]|["'」』]$/g, '').trim();
-            showToast('標題已生成！');
-        } else {
-            throw new Error('No title generated');
+        if (!rawText) throw new Error('No content generated');
+
+        // Strip markdown code fences if present
+        rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+        const parsed = JSON.parse(rawText);
+
+        if (parsed.title) {
+            elements.promptTitle.value = parsed.title.replace(/^["'「『]|["'」』]$/g, '').trim();
         }
+
+        if (parsed.tags && Array.isArray(parsed.tags)) {
+            // Merge AI tags with existing modal tags (no duplicates)
+            parsed.tags.forEach(tag => {
+                const t = tag.trim();
+                if (t && !modalTags.includes(t)) {
+                    modalTags.push(t);
+                }
+            });
+            renderModalTagChips();
+        }
+
+        showToast('標題與標籤已生成！');
     } catch (error) {
         console.error('AI generation error:', error);
-        showToast('生成失敗，請檢查 API Key');
+        showToast('生成失敗，請檢查 API Key 或重試');
     } finally {
         setGenerateBtnLoading(false);
+    }
+}
+
+// ===== Modal Tag Chips Management =====
+function renderModalTagChips() {
+    elements.modalTagChips.innerHTML = '';
+    modalTags.forEach((tag, idx) => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.innerHTML = `${escapeHtml(tag)}<button type="button" class="chip-remove" data-idx="${idx}">&times;</button>`;
+        chip.querySelector('.chip-remove').onclick = () => {
+            modalTags.splice(idx, 1);
+            renderModalTagChips();
+        };
+        elements.modalTagChips.appendChild(chip);
+    });
+}
+
+function addTagFromInput() {
+    const input = elements.promptTags;
+    const raw = input.value.trim();
+    if (!raw) return;
+    // Support comma-separated batch input
+    const newTags = raw.split(',').map(t => t.trim()).filter(t => t && !modalTags.includes(t));
+    modalTags.push(...newTags);
+    renderModalTagChips();
+    input.value = '';
+}
+
+// ===== Tag Filter Dropdown =====
+function populateTagFilter() {
+    const allTags = new Set();
+    prompts.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
+    const select = elements.tagFilterSelect;
+    const prev = selectedFilterTags.slice();
+    select.innerHTML = '';
+    Array.from(allTags).sort((a, b) => a.localeCompare(b, 'zh-TW')).forEach(tag => {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        opt.textContent = tag;
+        if (prev.includes(tag)) opt.selected = true;
+        select.appendChild(opt);
+    });
+    updateFilterPlaceholder();
+}
+
+function updateFilterPlaceholder() {
+    if (selectedFilterTags.length === 0) {
+        elements.filterPlaceholder.style.display = '';
+    } else {
+        elements.filterPlaceholder.style.display = 'none';
     }
 }
 
@@ -614,14 +711,10 @@ async function copyToClipboard(content) {
 }
 
 // ===== Search/Filter/Sort =====
-function filterPrompts(query) {
-    if (!query || !query.trim()) return prompts;
-    const searchTerm = query.toLowerCase().trim();
+function filterPrompts() {
+    if (selectedFilterTags.length === 0) return prompts;
     return prompts.filter(prompt => {
-        const titleMatch = prompt.title.toLowerCase().includes(searchTerm);
-        const tagMatch = prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-        const contentMatch = prompt.variants.some(v => v.prompt.toLowerCase().includes(searchTerm));
-        return titleMatch || tagMatch || contentMatch;
+        return selectedFilterTags.every(ft => (prompt.tags || []).includes(ft));
     });
 }
 
@@ -740,8 +833,7 @@ window.handleCardTabSwitch = function (btn, promptId, idx) {
 };
 
 function renderCards() {
-    const query = elements.searchInput.value;
-    const filteredPrompts = filterPrompts(query);
+    const filteredPrompts = filterPrompts();
     const sortedPrompts = sortPrompts(filteredPrompts);
     elements.cardsContainer.innerHTML = '';
 
@@ -793,7 +885,7 @@ function handleFormSubmit(e) {
         const data = {
             title: elements.promptTitle.value.trim(),
             variants: cleanVariants,
-            tags: parseTags(elements.promptTags.value)
+            tags: [...modalTags]
         };
 
         if (editingId) {
@@ -826,10 +918,6 @@ function handleCardAction(e) {
     }
 }
 
-function handleSearch() {
-    renderCards();
-}
-
 function handleConfirmDelete() {
     if (deleteId) {
         deletePrompt(deleteId);
@@ -859,7 +947,22 @@ function initEventListeners() {
 
     elements.promptForm.addEventListener('submit', handleFormSubmit);
     elements.cardsContainer.addEventListener('click', handleCardAction);
-    elements.searchInput.addEventListener('input', handleSearch);
+
+    // Tag filter dropdown
+    elements.tagFilterSelect.addEventListener('change', () => {
+        selectedFilterTags = Array.from(elements.tagFilterSelect.selectedOptions).map(o => o.value);
+        updateFilterPlaceholder();
+        renderCards();
+    });
+
+    // Tag input in modal
+    elements.addTagBtn.addEventListener('click', addTagFromInput);
+    elements.promptTags.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addTagFromInput();
+        }
+    });
 
     elements.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
     elements.confirmDeleteBtn.addEventListener('click', handleConfirmDelete);
@@ -891,7 +994,7 @@ function initEventListeners() {
 function getFormState() {
     return {
         title: elements.promptTitle.value.trim(),
-        tags: elements.promptTags.value.trim(),
+        tags: JSON.stringify(modalTags),
         variants: JSON.stringify(modalVariants.map(v => ({
             tabName: v.tabName,
             prompt: v.prompt,

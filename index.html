@@ -23,12 +23,14 @@
                 Prompt 咒語收藏盒
             </h1>
             <div class="header-right">
-                <div class="search-container">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="M21 21l-4.35-4.35" />
+                <div class="tag-filter-container">
+                    <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                     </svg>
-                    <input type="text" id="searchInput" class="search-input" placeholder="搜尋標題或標籤...">
+                    <select id="tagFilterSelect" class="tag-filter-select" title="標籤篩選" multiple>
+                        <!-- Options populated dynamically -->
+                    </select>
+                    <span class="filter-placeholder" id="filterPlaceholder">按標籤篩選...</span>
                 </div>
                 <button class="backup-btn" id="backupBtn" title="全部備份">📥 全部備份</button>
                 <button class="settings-btn" id="settingsBtn" title="設定">
@@ -139,8 +141,14 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="promptTags">分類標籤</label>
-                            <input type="text" id="promptTags" placeholder="用逗號分隔，例如：寫作, 行銷, GPT-4">
+                            <label>分類標籤</label>
+                            <div class="tag-chips-container" id="modalTagChips">
+                                <!-- Tag chips rendered by JS -->
+                            </div>
+                            <div class="tag-input-row">
+                                <input type="text" id="promptTags" placeholder="輸入標籤後按 Enter 新增...">
+                                <button type="button" class="tag-add-btn" id="addTagBtn">新增</button>
+                            </div>
                         </div>
                         <input type="hidden" id="promptId">
                         <div class="form-actions">
