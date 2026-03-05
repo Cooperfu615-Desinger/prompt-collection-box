@@ -51,14 +51,24 @@
 
     <!-- Main Content -->
     <main class="main-content">
-        <!-- Add Button -->
-        <button class="add-btn" id="addBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            新增咒語
-        </button>
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <button class="add-btn" id="addBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                新增咒語
+            </button>
+            <div class="sort-container">
+                <label for="sortSelect" class="sort-label">排序：</label>
+                <select id="sortSelect" class="sort-select">
+                    <option value="updatedAt">最後更新</option>
+                    <option value="title">標題 A-Z</option>
+                    <option value="tags">標籤分類</option>
+                </select>
+            </div>
+        </div>
 
         <!-- Cards Container -->
         <div class="cards-container" id="cardsContainer">

@@ -37,6 +37,7 @@ let modalVariants = []; // Each: { tabName, prompt, imageUrl, _pendingFile }
 let activeModalTabIdx = 0;
 let currentUser = null;
 let initialFormState = null;
+let currentSortMode = 'updatedAt';
 
 // ===== DOM Elements =====
 const elements = {
@@ -75,7 +76,8 @@ const elements = {
     saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
     cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
     aiGenerateBtn: document.getElementById('aiGenerateBtn'),
-    backupBtn: document.getElementById('backupBtn')
+    backupBtn: document.getElementById('backupBtn'),
+    sortSelect: document.getElementById('sortSelect')
 };
 
 // ===== Data Migration Helper =====
@@ -111,7 +113,6 @@ function normalizeToVariants(doc) {
 // Listen for real-time updates
 function subscribeToPrompts() {
     db.collection(PROMPT_COLLECTION)
-        .orderBy('createdAt', 'desc')
         .onSnapshot((snapshot) => {
             prompts = snapshot.docs.map(doc => {
                 const raw = { id: doc.id, ...doc.data() };
@@ -546,11 +547,13 @@ function uploadImage(file) {
 // ===== CRUD Operations (Compat) =====
 async function addPrompt(data) {
     try {
+        const now = new Date().toISOString();
         await db.collection(PROMPT_COLLECTION).add({
             title: data.title,
             variants: data.variants,
             tags: data.tags,
-            createdAt: new Date().toISOString()
+            createdAt: now,
+            updatedAt: now
         });
         showToast('咒語已新增！');
         console.log("Firestore 連線成功！(Add)");
@@ -610,7 +613,7 @@ async function copyToClipboard(content) {
     }
 }
 
-// ===== Search/Filter =====
+// ===== Search/Filter/Sort =====
 function filterPrompts(query) {
     if (!query || !query.trim()) return prompts;
     const searchTerm = query.toLowerCase().trim();
@@ -620,6 +623,30 @@ function filterPrompts(query) {
         const contentMatch = prompt.variants.some(v => v.prompt.toLowerCase().includes(searchTerm));
         return titleMatch || tagMatch || contentMatch;
     });
+}
+
+function sortPrompts(list) {
+    const sorted = [...list];
+    switch (currentSortMode) {
+        case 'updatedAt':
+            sorted.sort((a, b) => {
+                const ta = a.updatedAt || a.createdAt || '';
+                const tb = b.updatedAt || b.createdAt || '';
+                return tb.localeCompare(ta); // desc
+            });
+            break;
+        case 'title':
+            sorted.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'zh-TW'));
+            break;
+        case 'tags':
+            sorted.sort((a, b) => {
+                const tagA = (a.tags && a.tags[0]) || '';
+                const tagB = (b.tags && b.tags[0]) || '';
+                return tagA.localeCompare(tagB, 'zh-TW');
+            });
+            break;
+    }
+    return sorted;
 }
 
 // ===== Render Functions =====
@@ -715,15 +742,16 @@ window.handleCardTabSwitch = function (btn, promptId, idx) {
 function renderCards() {
     const query = elements.searchInput.value;
     const filteredPrompts = filterPrompts(query);
+    const sortedPrompts = sortPrompts(filteredPrompts);
     elements.cardsContainer.innerHTML = '';
 
-    if (filteredPrompts.length === 0) {
+    if (sortedPrompts.length === 0) {
         elements.emptyState.classList.add('visible');
         elements.cardsContainer.style.display = 'none';
     } else {
         elements.emptyState.classList.remove('visible');
         elements.cardsContainer.style.display = 'grid';
-        filteredPrompts.forEach(prompt => elements.cardsContainer.appendChild(createCardElement(prompt)));
+        sortedPrompts.forEach(prompt => elements.cardsContainer.appendChild(createCardElement(prompt)));
     }
 }
 
@@ -845,6 +873,10 @@ function initEventListeners() {
 
     elements.aiGenerateBtn.addEventListener('click', generateTitleWithAI);
     elements.backupBtn.addEventListener('click', backupAll);
+    elements.sortSelect.addEventListener('change', (e) => {
+        currentSortMode = e.target.value;
+        renderCards();
+    });
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
