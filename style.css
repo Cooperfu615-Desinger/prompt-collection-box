@@ -196,166 +196,206 @@ body {
     -webkit-text-fill-color: initial;
 }
 
-/* ===== Tag Filter Dropdown ===== */
-.tag-filter-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-}
-
-.filter-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
-    color: var(--text-muted);
-    pointer-events: none;
-    z-index: 1;
-}
-
-.tag-filter-select {
-    width: 100%;
-    min-height: 40px;
-    padding: 0.5rem 0.75rem 0.5rem 2.5rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    color: var(--text-primary);
-    font-size: 0.85rem;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition: border-color var(--transition-fast);
-    appearance: none;
-}
-
-.tag-filter-select:focus {
-    outline: none;
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
-}
-
-.tag-filter-select option {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    padding: 0.35rem 0.5rem;
-}
-
-.tag-filter-select option:checked {
-    background: var(--accent-primary);
-    color: #fff;
-}
-
-.filter-placeholder {
-    position: absolute;
-    left: 2.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    pointer-events: none;
-}
-
-/* ===== Add Tag Toggle Button ===== */
-.add-tag-toggle-btn {
+/* ===== Tag Filter Sidebar ===== */
+.filter-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.5rem 0.85rem;
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15));
-    border: 1px solid rgba(34, 197, 94, 0.4);
-    border-radius: 9999px;
-    color: #4ade80;
-    font-size: 0.8rem;
-    font-weight: 500;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition: all var(--transition-normal);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.add-tag-toggle-btn:hover {
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(59, 130, 246, 0.25));
-    border-color: #4ade80;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
-}
-
-/* ===== Add Tag Panel (Collapsible) ===== */
-.add-tag-panel {
-    display: none;
-    align-items: center;
     gap: 0.5rem;
-    width: 100%;
-    padding: 0.6rem 0.75rem;
+    padding: 0.5rem 1rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    animation: chipIn 0.2s ease;
-}
-
-.add-tag-panel.active {
-    display: flex;
-}
-
-.add-tag-select {
-    padding: 0.45rem 0.6rem;
-    background: var(--bg-code);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-family: var(--font-sans);
     cursor: pointer;
-    min-width: 90px;
+    transition: all var(--transition-normal);
 }
 
-.add-tag-select:focus {
-    outline: none;
+.filter-btn:hover {
+    background: var(--bg-card-hover);
     border-color: var(--accent-primary);
+    box-shadow: 0 0 10px rgba(124, 58, 237, 0.15);
 }
 
-.add-tag-select option {
+.filter-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 340px;
+    height: 100vh;
+    background: var(--bg-card);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+    transform: translateX(100%);
+    transition: transform var(--transition-normal);
+    z-index: 101;
+    display: flex;
+    flex-direction: column;
+}
+
+body.filter-sidebar-open .filter-sidebar {
+    transform: translateX(0);
+}
+
+.filter-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.filter-sidebar-header h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.sidebar-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-close:hover {
     background: var(--bg-secondary);
-    color: var(--text-primary);
+    color: var(--danger);
 }
 
-.add-tag-input {
+.sidebar-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.filter-sidebar-content {
+    padding: 1.5rem;
+    overflow-y: auto;
     flex: 1;
-    padding: 0.45rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.clear-filter-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--danger);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.clear-filter-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.filter-category {
+    margin-bottom: 0;
+}
+
+.filter-category-title {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.filter-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.filter-tag-btn {
+    padding: 0.4rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    opacity: 0.7;
+}
+
+.filter-tag-btn:hover {
+    opacity: 1;
+    border-color: var(--text-muted);
+}
+
+.filter-tag-btn.selected {
+    opacity: 1;
+    font-weight: 500;
+}
+
+/* Add Tag Panel embedded in sidebar */
+.add-tag-section {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.add-tag-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.add-tag-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.add-tag-select,
+.add-tag-input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
     background: var(--bg-code);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-family: var(--font-sans);
-    min-width: 100px;
 }
 
+.add-tag-select:focus,
 .add-tag-input:focus {
     outline: none;
     border-color: var(--accent-primary);
 }
 
 .add-tag-confirm-btn {
-    padding: 0.45rem 0.85rem;
+    width: 100%;
+    padding: 0.6rem;
     background: var(--accent-gradient);
     border: none;
     border-radius: var(--radius-sm);
     color: #fff;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    font-family: var(--font-sans);
     cursor: pointer;
-    white-space: nowrap;
-    transition: all var(--transition-fast);
+    transition: opacity var(--transition-fast);
 }
 
 .add-tag-confirm-btn:hover {
     opacity: 0.9;
-    transform: translateY(-1px);
 }
 
 /* ===== Tag Chip Category Label ===== */
@@ -460,6 +500,15 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 2rem 1.5rem;
+    transition: padding-right var(--transition-normal), max-width var(--transition-normal);
+}
+
+@media (min-width: 1024px) {
+    body.filter-sidebar-open .main-content {
+        padding-right: calc(340px + 1.5rem);
+        max-width: calc(1400px + 340px);
+        /* Allow expanding max-width to offset the padding loss */
+    }
 }
 
 /* ===== Toolbar ===== */

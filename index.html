@@ -23,34 +23,8 @@
                 Prompt 咒語收藏盒
             </h1>
             <div class="header-right">
-                <div class="tag-filter-container">
-                    <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                    </svg>
-                    <select id="tagFilterSelect" class="tag-filter-select" title="標籤篩選" multiple>
-                        <!-- Options populated dynamically -->
-                    </select>
-                    <span class="filter-placeholder" id="filterPlaceholder">按標籤篩選...</span>
-                </div>
-                <button class="add-tag-toggle-btn" onclick="toggleAddTagPanel()" title="新增標籤至標籤庫">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    新增標籤
-                </button>
-                <div class="add-tag-panel" id="addTagPanel">
-                    <select id="newTagCategory" class="add-tag-select" title="選擇標籤分類">
-                        <option value="">選擇分類</option>
-                        <option value="主體">主體</option>
-                        <option value="服裝">服裝</option>
-                        <option value="場景">場景</option>
-                        <option value="風格">風格</option>
-                        <option value="光影">光影</option>
-                    </select>
-                    <input type="text" id="newTagName" class="add-tag-input" placeholder="輸入新標籤名稱...">
-                    <button class="add-tag-confirm-btn" onclick="handleAddCustomTag()">確認</button>
-                </div>
+                <button class="filter-btn" id="filterBtn" onclick="toggleFilterSidebar()" title="開啟標籤篩選">🔍
+                    標籤篩選</button>
                 <button class="backup-btn" id="backupBtn" title="全部備份">📥 全部備份</button>
                 <button class="settings-btn" id="settingsBtn" title="設定">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -103,6 +77,48 @@
             <p>點擊「新增咒語」來收藏你的第一個 Prompt！</p>
         </div>
     </main>
+
+    <!-- Tag Filter Sidebar -->
+    <aside class="filter-sidebar" id="filterSidebar">
+        <div class="filter-sidebar-header">
+            <h2>🔍 標籤篩選</h2>
+            <button class="sidebar-close" onclick="toggleFilterSidebar()" title="關閉">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div class="filter-sidebar-content">
+            <div class="filter-actions-top">
+                <button class="clear-filter-btn" id="clearFilterBtn" onclick="clearAllFilters()">🚫 清除所有篩選</button>
+            </div>
+            <div class="filter-categories" id="filterCategoriesContainer">
+                <!-- Categories populated dynamically -->
+            </div>
+            <div class="add-tag-section">
+                <div class="add-tag-section-header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    新增標籤至標籤庫
+                </div>
+                <div class="add-tag-panel active" id="addTagPanel">
+                    <select id="newTagCategory" class="add-tag-select" title="選擇標籤分類">
+                        <option value="">選擇分類</option>
+                        <option value="主體">主體</option>
+                        <option value="服裝">服裝</option>
+                        <option value="場景">場景</option>
+                        <option value="風格">風格</option>
+                        <option value="光影">光影</option>
+                    </select>
+                    <input type="text" id="newTagName" class="add-tag-input" placeholder="輸入名稱...">
+                    <button class="add-tag-confirm-btn" onclick="handleAddCustomTag()">確認</button>
+                </div>
+            </div>
+        </div>
+    </aside>
 
     <!-- Add/Edit Drawer (Side Panel) -->
     <div class="modal-overlay" id="modalOverlay">

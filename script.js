@@ -70,8 +70,10 @@ const elements = {
     logoutBtn: document.getElementById('logoutBtn'),
 
     // Existing Elements
-    tagFilterSelect: document.getElementById('tagFilterSelect'),
-    filterPlaceholder: document.getElementById('filterPlaceholder'),
+    filterBtn: document.getElementById('filterBtn'),
+    filterSidebar: document.getElementById('filterSidebar'),
+    filterCategoriesContainer: document.getElementById('filterCategoriesContainer'),
+    clearFilterBtn: document.getElementById('clearFilterBtn'),
     addBtn: document.getElementById('addBtn'),
     cardsContainer: document.getElementById('cardsContainer'),
     emptyState: document.getElementById('emptyState'),
@@ -637,13 +639,7 @@ ${allContent}`
             const validTagNames = getAllTagNames();
             const filteredTags = parsed.tags.filter(t => validTagNames.includes(t.trim()));
 
-            // Replace existing modal tags with AI-generated ones (clean slate per AI run)
-            filteredTags.forEach(tag => {
-                const t = tag.trim();
-                if (t && !modalTags.includes(t)) {
-                    modalTags.push(t);
-                }
-            });
+            modalTags = Array.from(new Set(filteredTags.map(t => t.trim())));
             renderModalTagChips();
         }
 
@@ -690,36 +686,73 @@ function addTagFromInput() {
     input.value = '';
 }
 
-// ===== Tag Filter Dropdown =====
+// ===== Tag Filter Sidebar =====
 function populateTagFilter() {
-    const allTags = new Set();
-    prompts.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
-    const select = elements.tagFilterSelect;
-    const prev = selectedFilterTags.slice();
-    select.innerHTML = '';
-    Array.from(allTags).sort((a, b) => a.localeCompare(b, 'zh-TW')).forEach(tag => {
-        const opt = document.createElement('option');
-        opt.value = tag;
-        opt.textContent = tag;
-        if (prev.includes(tag)) opt.selected = true;
-        select.appendChild(opt);
-    });
-    updateFilterPlaceholder();
-}
+    const container = elements.filterCategoriesContainer;
+    if (!container) return;
+    container.innerHTML = '';
 
-function updateFilterPlaceholder() {
-    if (selectedFilterTags.length === 0) {
-        elements.filterPlaceholder.style.display = '';
-    } else {
-        elements.filterPlaceholder.style.display = 'none';
+    // Using full tag pool which includes fixed and custom tags
+    const pool = getFullTagPool();
+
+    for (const [category, tags] of Object.entries(pool)) {
+        if (!tags || tags.length === 0) continue;
+
+        const catDiv = document.createElement('div');
+        catDiv.className = 'filter-category';
+
+        const catTitle = document.createElement('div');
+        catTitle.className = 'filter-category-title';
+        catTitle.textContent = category;
+        catDiv.appendChild(catTitle);
+
+        const tagList = document.createElement('div');
+        tagList.className = 'filter-tag-list';
+
+        tags.forEach(tag => {
+            const btn = document.createElement('button');
+            btn.className = `filter-tag-btn ${selectedFilterTags.includes(tag) ? 'selected' : ''}`;
+            btn.textContent = tag;
+
+            // Apply category color if selected
+            const colors = TAG_CATEGORY_COLORS[category];
+            if (colors && selectedFilterTags.includes(tag)) {
+                btn.style.background = colors.bg;
+                btn.style.borderColor = colors.border;
+                btn.style.color = colors.text;
+            }
+
+            btn.onclick = () => toggleFilterTag(tag);
+            tagList.appendChild(btn);
+        });
+
+        catDiv.appendChild(tagList);
+        container.appendChild(catDiv);
     }
 }
 
+window.toggleFilterTag = function (tag) {
+    const index = selectedFilterTags.indexOf(tag);
+    if (index === -1) {
+        selectedFilterTags.push(tag);
+    } else {
+        selectedFilterTags.splice(index, 1);
+    }
+    populateTagFilter(); // Re-render to update selected styles
+    renderCards();
+};
+
+window.clearAllFilters = function () {
+    selectedFilterTags = [];
+    populateTagFilter();
+    renderCards();
+};
+
+window.toggleFilterSidebar = function () {
+    document.body.classList.toggle('filter-sidebar-open');
+};
+
 // ===== Add Tag UI Logic =====
-function toggleAddTagPanel() {
-    const panel = document.getElementById('addTagPanel');
-    if (panel) panel.classList.toggle('active');
-}
 
 function handleAddCustomTag() {
     const catSelect = document.getElementById('newTagCategory');
@@ -743,7 +776,7 @@ function uploadImage(file) {
             return;
         }
 
-        const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
+        const storageRef = storage.ref(`images / ${Date.now()}_${file.name} `);
         const uploadTask = storageRef.put(file);
 
         uploadTask.on('state_changed',
@@ -876,8 +909,9 @@ function createCardElement(prompt) {
     const activeVariantIdx = 0;
     const activeVariant = prompt.variants[activeVariantIdx] || { prompt: '', imageUrl: null };
 
-    const tagsHtml = prompt.tags.length > 0
-        ? `<div class="card-tags">${prompt.tags.map(tag => {
+    const rawTags = prompt.tags || [];
+    const tagsHtml = rawTags.length > 0
+        ? `<div class="card-tags">${rawTags.map(tag => {
             const category = getTagCategory(tag);
             const colors = category ? TAG_CATEGORY_COLORS[category] : null;
             const style = colors ? `style="background:${colors.bg};border-color:${colors.border};color:${colors.text}"` : '';
@@ -918,21 +952,21 @@ function createCardElement(prompt) {
                     </svg>
                 </button>
             </div>
-        </div>
-        <div class="tabs-container">
-            ${tabsHeaderHtml}
-            <div class="card-content" id="card-content-${prompt.id}">${escapeHtml(activeVariant.prompt)}</div>
-        </div>
+        </div >
+                <div class="tabs-container">
+                    ${tabsHeaderHtml}
+                    <div class="card-content" id="card-content-${prompt.id}">${escapeHtml(activeVariant.prompt)}</div>
+                </div>
         ${tagsHtml}
         ${imageHtml}
-        <button class="copy-btn" data-action="copy" data-current-idx="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-            複製咒語
-        </button>
-    `;
+            <button class="copy-btn" data-action="copy" data-current-idx="0">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                複製咒語
+            </button>
+            `;
     return card;
 }
 
@@ -944,14 +978,14 @@ window.handleCardTabSwitch = function (btn, promptId, idx) {
     btn.classList.add('active');
 
     // Update prompt text
-    document.getElementById(`card-content-${promptId}`).textContent = prompt.variants[idx].prompt;
+    document.getElementById(`card - content - ${promptId} `).textContent = prompt.variants[idx].prompt;
 
     // Update card image
-    const imgContainer = document.getElementById(`card-image-${promptId}`);
+    const imgContainer = document.getElementById(`card - image - ${promptId} `);
     if (imgContainer) {
         const variantImg = prompt.variants[idx].imageUrl;
         if (variantImg) {
-            imgContainer.innerHTML = `<img src="${escapeHtml(variantImg)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">`;
+            imgContainer.innerHTML = `< img src = "${escapeHtml(variantImg)}" alt = "範例圖片" loading = "lazy" onerror = "this.parentElement.style.display='none'" > `;
             imgContainer.style.display = '';
         } else {
             imgContainer.style.display = 'none';
@@ -999,7 +1033,7 @@ function handleFormSubmit(e) {
                         variant.imageUrl = uploadedUrl;
                     }
                 } catch (err) {
-                    console.error(`Image upload failed for tab ${i}:`, err);
+                    console.error(`Image upload failed for tab ${i}: `, err);
                     return; // Stop submission on upload error
                 }
             }
@@ -1078,12 +1112,6 @@ function initEventListeners() {
     elements.promptForm.addEventListener('submit', handleFormSubmit);
     elements.cardsContainer.addEventListener('click', handleCardAction);
 
-    // Tag filter dropdown
-    elements.tagFilterSelect.addEventListener('change', () => {
-        selectedFilterTags = Array.from(elements.tagFilterSelect.selectedOptions).map(o => o.value);
-        updateFilterPlaceholder();
-        renderCards();
-    });
 
     // Tag input in modal
     elements.addTagBtn.addEventListener('click', addTagFromInput);
@@ -1116,6 +1144,7 @@ function initEventListeners() {
             if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
             else if (elements.deleteModalOverlay.classList.contains('active')) closeDeleteModal();
             else if (elements.modalOverlay.classList.contains('active')) handleCloseAttempt();
+            else if (document.body.classList.contains('filter-sidebar-open')) window.toggleFilterSidebar();
         }
     });
 }
@@ -1232,7 +1261,7 @@ async function backupAll() {
         const txtLines = [];
         for (const prompt of data) {
             txtLines.push('=========================================');
-            txtLines.push(`標題：${prompt.title || ''}`);
+            txtLines.push(`標題：${prompt.title || ''} `);
             txtLines.push('=========================================');
 
             const variants = prompt.variants || [];
@@ -1243,7 +1272,7 @@ async function backupAll() {
             }
 
             const tags = (prompt.tags || []).join(', ');
-            txtLines.push(`標籤：${tags}`);
+            txtLines.push(`標籤：${tags} `);
             txtLines.push('');
             txtLines.push('');
         }
@@ -1268,11 +1297,11 @@ async function backupAll() {
 
                 try {
                     const response = await fetch(imageUrl);
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status} `);
                     const blob = await response.blob();
                     imgFolder.file(filename, blob);
                 } catch (err) {
-                    console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename}`, err);
+                    console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename} `, err);
                     corsFailedImages.push(filename);
                 }
             }
