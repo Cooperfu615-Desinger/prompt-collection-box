@@ -1024,6 +1024,85 @@ body {
     margin-bottom: 0.75rem;
 }
 
+/* Tab Close Button */
+.tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 0.35rem;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 50%;
+    color: var(--text-muted);
+    transition: all var(--transition-fast);
+}
+
+.tab-close:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* Per-Tab Image Upload Section */
+.variant-image-section {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.variant-image-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.variant-image-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.variant-file-input {
+    flex: 1;
+    min-width: 120px;
+}
+
+.variant-url-input {
+    flex: 1;
+    min-width: 140px;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-code);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    transition: border-color var(--transition-fast);
+}
+
+.variant-url-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.variant-thumb {
+    margin-top: 0.5rem;
+    max-width: 120px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.variant-thumb img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
 /* Version Control Buttons */
 .version-controls {
     display: flex;

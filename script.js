@@ -23,21 +23,20 @@ const auth = firebase.auth();
 const PROMPT_COLLECTION = 'prompts';
 const ALLOWED_EMAIL = 'cooperfu.615@gmail.com';
 
-// ===== Connection Test (Requested) =====
-
-
 // ===== Data Model =====
 const LOCAL_STORAGE_KEY = 'prompt-collection-box';
 const API_KEY_STORAGE = 'gemini-api-key';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const MAX_VARIANTS = 5;
 
 // ===== State =====
 let prompts = [];
 let editingId = null;
 let deleteId = null;
-let modalVersions = [];
+let modalVariants = []; // Each: { tabName, prompt, imageUrl, _pendingFile }
 let activeModalTabIdx = 0;
 let currentUser = null;
+let initialFormState = null;
 
 // ===== DOM Elements =====
 const elements = {
@@ -59,8 +58,6 @@ const elements = {
     promptId: document.getElementById('promptId'),
     promptTitle: document.getElementById('promptTitle'),
     promptTags: document.getElementById('promptTags'),
-    promptImage: document.getElementById('promptImage'), // URL Input
-    imageInput: document.getElementById('imageInput'),   // File Input
     modalTabsList: document.getElementById('modalTabsList'),
     modalTabsPanels: document.getElementById('modalTabsPanels'),
     addTabBtn: document.getElementById('addTabBtn'),
@@ -81,6 +78,34 @@ const elements = {
     backupBtn: document.getElementById('backupBtn')
 };
 
+// ===== Data Migration Helper =====
+// Converts old format to new variants format
+function normalizeToVariants(doc) {
+    // Already has variants → return as-is
+    if (doc.variants && Array.isArray(doc.variants)) return doc;
+
+    const variants = [];
+    if (doc.versions && Array.isArray(doc.versions)) {
+        // Old versions[] + top-level imageUrl
+        doc.versions.forEach((v, idx) => {
+            variants.push({
+                tabName: v.label || '通用',
+                prompt: v.content || '',
+                imageUrl: idx === 0 ? (doc.imageUrl || null) : null
+            });
+        });
+    } else {
+        // Very old: single content field
+        variants.push({
+            tabName: '通用',
+            prompt: doc.content || '',
+            imageUrl: doc.imageUrl || null
+        });
+    }
+
+    return { ...doc, variants };
+}
+
 // ===== Firestore Logic (Compat Syntax) =====
 
 // Listen for real-time updates
@@ -88,10 +113,10 @@ function subscribeToPrompts() {
     db.collection(PROMPT_COLLECTION)
         .orderBy('createdAt', 'desc')
         .onSnapshot((snapshot) => {
-            prompts = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            prompts = snapshot.docs.map(doc => {
+                const raw = { id: doc.id, ...doc.data() };
+                return normalizeToVariants(raw);
+            });
             console.log(`Loaded ${prompts.length} prompts from Firestore.`);
             renderCards();
         }, (error) => {
@@ -100,7 +125,7 @@ function subscribeToPrompts() {
         });
 }
 
-// Data Migration
+// Data Migration from LocalStorage
 async function migrateLocalStorage() {
     const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!localData) return;
@@ -117,18 +142,13 @@ async function migrateLocalStorage() {
 
             parsedData.forEach(p => {
                 const docRef = db.collection(PROMPT_COLLECTION).doc();
-
-                let versions = p.versions;
-                if (!versions) {
-                    versions = [{ label: '通用', content: p.content || '' }];
-                }
+                const normalized = normalizeToVariants(p);
 
                 batch.set(docRef, {
-                    title: p.title || 'Untitled',
-                    versions: versions,
-                    tags: p.tags || [],
-                    imageUrl: p.imageUrl || null,
-                    createdAt: p.createdAt || new Date().toISOString(),
+                    title: normalized.title || 'Untitled',
+                    variants: normalized.variants,
+                    tags: normalized.tags || [],
+                    createdAt: normalized.createdAt || new Date().toISOString(),
                     migratedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 count++;
@@ -186,48 +206,123 @@ function showToast(message = '已複製到剪貼簿！') {
     }, 2500);
 }
 
-// ===== Modal Functions (Tabs Logic) =====
+// ===== Modal Functions (Variants Tab Logic) =====
 function renderModalTabs() {
     elements.modalTabsList.innerHTML = '';
     elements.modalTabsPanels.innerHTML = '';
 
-    modalVersions.forEach((version, index) => {
+    modalVariants.forEach((variant, index) => {
+        // --- Tab Button ---
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `tab-btn ${index === activeModalTabIdx ? 'active' : ''}`;
-        btn.textContent = version.label || `版本 ${index + 1}`;
+        btn.textContent = variant.tabName || `Tab ${index + 1}`;
         btn.onclick = () => switchModalTab(index);
+
+        // Delete "x" badge (only if more than 1 tab)
+        if (modalVariants.length > 1) {
+            const closeSpan = document.createElement('span');
+            closeSpan.className = 'tab-close';
+            closeSpan.textContent = '×';
+            closeSpan.onclick = (e) => {
+                e.stopPropagation();
+                deleteModalTab(index);
+            };
+            btn.appendChild(closeSpan);
+        }
+
         elements.modalTabsList.appendChild(btn);
 
+        // --- Tab Panel ---
         const panel = document.createElement('div');
         panel.className = `tab-panel ${index === activeModalTabIdx ? 'active' : ''}`;
 
+        // Tab Name Input
         const labelInput = document.createElement('input');
         labelInput.type = 'text';
         labelInput.className = 'version-label-input';
-        labelInput.placeholder = '版本名稱 (例如: ChatGPT, v1)';
-        labelInput.value = version.label;
+        labelInput.placeholder = '頁籤名稱 (例如: ChatGPT, Midjourney)';
+        labelInput.value = variant.tabName;
         labelInput.oninput = (e) => {
-            version.label = e.target.value;
-            btn.textContent = e.target.value || `版本 ${index + 1}`;
+            variant.tabName = e.target.value;
+            btn.childNodes[0].textContent = e.target.value || `Tab ${index + 1}`;
         };
         panel.appendChild(labelInput);
 
+        // Prompt Textarea
         const textarea = document.createElement('textarea');
-        textarea.required = true;
+        textarea.required = (index === 0);
         textarea.placeholder = '請輸入你的 Prompt 內容...';
-        textarea.value = version.content;
-        textarea.id = `modal-version-content-${index}`;
+        textarea.value = variant.prompt;
+        textarea.id = `modal-variant-prompt-${index}`;
         textarea.oninput = (e) => {
-            version.content = e.target.value;
+            variant.prompt = e.target.value;
         };
         panel.appendChild(textarea);
 
-        // Version control buttons (always show, but Clear only if multiple versions)
+        // --- Per-tab Image Upload Section ---
+        const imgSection = document.createElement('div');
+        imgSection.className = 'variant-image-section';
+
+        const imgLabel = document.createElement('label');
+        imgLabel.className = 'variant-image-label';
+        imgLabel.textContent = '📷 此頁籤的圖片';
+        imgSection.appendChild(imgLabel);
+
+        const imgRow = document.createElement('div');
+        imgRow.className = 'variant-image-row';
+
+        // File input
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.className = 'file-input variant-file-input';
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                variant._pendingFile = file;
+                const objectUrl = URL.createObjectURL(file);
+                updatePreview(objectUrl);
+                // Clear URL input if file selected
+                urlInput.value = '';
+                variant.imageUrl = ''; // Will be replaced after upload
+            }
+        };
+        imgRow.appendChild(fileInput);
+
+        // URL input
+        const urlInput = document.createElement('input');
+        urlInput.type = 'url';
+        urlInput.className = 'variant-url-input';
+        urlInput.placeholder = '或貼上圖片連結...';
+        urlInput.value = variant.imageUrl || '';
+        urlInput.oninput = (e) => {
+            variant.imageUrl = e.target.value.trim();
+            variant._pendingFile = null;
+            fileInput.value = '';
+            if (index === activeModalTabIdx) {
+                updatePreview(variant.imageUrl);
+            }
+        };
+        imgRow.appendChild(urlInput);
+
+        imgSection.appendChild(imgRow);
+
+        // Show current image thumbnail if exists
+        if (variant.imageUrl) {
+            const thumb = document.createElement('div');
+            thumb.className = 'variant-thumb';
+            thumb.innerHTML = `<img src="${escapeHtml(variant.imageUrl)}" alt="thumb" onerror="this.parentElement.style.display='none'">`;
+            imgSection.appendChild(thumb);
+        }
+
+        panel.appendChild(imgSection);
+
+        // --- Version Control Buttons ---
         const btnContainer = document.createElement('div');
         btnContainer.className = 'version-controls';
 
-        // Copy button (always visible)
+        // Copy button
         const copyBtn = document.createElement('button');
         copyBtn.type = 'button';
         copyBtn.className = 'version-control-btn copy-btn-version';
@@ -239,32 +334,26 @@ function renderModalTabs() {
             複製
         `;
         copyBtn.onclick = () => {
-            copyToClipboard(version.content);
+            copyToClipboard(variant.prompt);
         };
         btnContainer.appendChild(copyBtn);
-
-        // Clear button (only if multiple versions)
-        if (modalVersions.length > 1) {
-            const clearBtn = document.createElement('button');
-            clearBtn.type = 'button';
-            clearBtn.className = 'version-control-btn clear-btn-version';
-            clearBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                </svg>
-                清除
-            `;
-            clearBtn.onclick = () => deleteModalTab(index);
-            btnContainer.appendChild(clearBtn);
-        }
 
         panel.appendChild(btnContainer);
 
         elements.modalTabsPanels.appendChild(panel);
     });
 
-    elements.addTabBtn.disabled = modalVersions.length >= 3;
+    elements.addTabBtn.disabled = modalVariants.length >= MAX_VARIANTS;
+
+    // Update left preview to current tab's image
+    const currentVariant = modalVariants[activeModalTabIdx];
+    if (currentVariant) {
+        if (currentVariant._pendingFile) {
+            updatePreview(URL.createObjectURL(currentVariant._pendingFile));
+        } else {
+            updatePreview(currentVariant.imageUrl || '');
+        }
+    }
 }
 
 function switchModalTab(index) {
@@ -273,18 +362,18 @@ function switchModalTab(index) {
 }
 
 function addModalTab() {
-    if (modalVersions.length >= 3) return;
-    const nextNum = modalVersions.length + 1;
-    modalVersions.push({ label: `v${nextNum}`, content: '' });
-    activeModalTabIdx = modalVersions.length - 1;
+    if (modalVariants.length >= MAX_VARIANTS) return;
+    const nextNum = modalVariants.length + 1;
+    modalVariants.push({ tabName: `Tab ${nextNum}`, prompt: '', imageUrl: null, _pendingFile: null });
+    activeModalTabIdx = modalVariants.length - 1;
     renderModalTabs();
 }
 
 function deleteModalTab(index) {
-    if (modalVersions.length <= 1) return;
-    modalVersions.splice(index, 1);
-    if (activeModalTabIdx >= modalVersions.length) {
-        activeModalTabIdx = modalVersions.length - 1;
+    if (modalVariants.length <= 1) return;
+    modalVariants.splice(index, 1);
+    if (activeModalTabIdx >= modalVariants.length) {
+        activeModalTabIdx = modalVariants.length - 1;
     }
     renderModalTabs();
 }
@@ -294,18 +383,15 @@ function openModal(isEdit = false, prompt = null) {
     elements.modalTitle.textContent = isEdit ? '編輯咒語' : '新增咒語';
     elements.promptForm.reset();
 
-    // Reset file input manually
-    if (elements.imageInput) elements.imageInput.value = '';
-
     if (isEdit && prompt) {
         elements.promptTitle.value = prompt.title;
         elements.promptTags.value = formatTags(prompt.tags);
-        elements.promptImage.value = prompt.imageUrl || '';
-        modalVersions = JSON.parse(JSON.stringify(prompt.versions));
-        updatePreview(prompt.imageUrl);
+        modalVariants = JSON.parse(JSON.stringify(prompt.variants)).map(v => ({
+            ...v,
+            _pendingFile: null
+        }));
     } else {
-        modalVersions = [{ label: '通用', content: '' }];
-        updatePreview('');
+        modalVariants = [{ tabName: '通用', prompt: '', imageUrl: null, _pendingFile: null }];
     }
 
     activeModalTabIdx = 0;
@@ -316,24 +402,18 @@ function openModal(isEdit = false, prompt = null) {
     setTimeout(() => elements.promptTitle.focus(), 100);
 
     // Capture initial state for dirty check
-    // Timeout ensuring values are set
     setTimeout(() => {
         initialFormState = getFormState();
     }, 50);
 }
 
 function closeModal(force = false) {
-    // Note: The 'force' parameter is mainly used by the caller (handleCloseAttempt)
-    // to bypass the check, but here we just execute the close logic.
-
     elements.modalOverlay.classList.remove('active');
     document.body.style.overflow = '';
     editingId = null;
-    modalVersions = [];
+    modalVariants = [];
     activeModalTabIdx = 0;
     initialFormState = null;
-
-    // Clear preview
     updatePreview('');
 }
 
@@ -391,10 +471,10 @@ async function generateTitleWithAI() {
         return;
     }
 
-    const currentContent = modalVersions[activeModalTabIdx]?.content?.trim();
+    const currentContent = modalVariants[activeModalTabIdx]?.prompt?.trim();
     if (!currentContent) {
-        showToast('請先輸入咒語內容 (目前版本)');
-        const textarea = document.getElementById(`modal-version-content-${activeModalTabIdx}`);
+        showToast('請先輸入咒語內容 (目前頁籤)');
+        const textarea = document.getElementById(`modal-variant-prompt-${activeModalTabIdx}`);
         if (textarea) textarea.focus();
         return;
     }
@@ -432,7 +512,7 @@ async function generateTitleWithAI() {
     }
 }
 
-// ===== Storage Upload Logic (With Error Handling) =====
+// ===== Storage Upload Logic =====
 function uploadImage(file) {
     return new Promise((resolve, reject) => {
         if (!file) {
@@ -440,27 +520,20 @@ function uploadImage(file) {
             return;
         }
 
-        // Create a unique filename: images/timestamp_filename
         const storageRef = storage.ref(`images/${Date.now()}_${file.name}`);
         const uploadTask = storageRef.put(file);
 
-        showToast("正在上傳圖片...");
-
         uploadTask.on('state_changed',
             (snapshot) => {
-                // Progress monitoring (optional)
                 const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                 console.log('Upload is ' + progress + '% done');
             },
             (error) => {
-                // Handle unsuccessful uploads
                 console.error("Upload failed:", error);
-                // 使用 alert 讓使用者直接看到錯誤訊息
                 alert("上傳失敗：" + error.message);
                 reject(error);
             },
             () => {
-                // Handle successful uploads on complete
                 uploadTask.snapshot.ref.getDownloadURL().then((downloadURL) => {
                     console.log('File available at', downloadURL);
                     resolve(downloadURL);
@@ -475,9 +548,8 @@ async function addPrompt(data) {
     try {
         await db.collection(PROMPT_COLLECTION).add({
             title: data.title,
-            versions: data.versions,
+            variants: data.variants,
             tags: data.tags,
-            imageUrl: data.imageUrl,
             createdAt: new Date().toISOString()
         });
         showToast('咒語已新增！');
@@ -492,9 +564,8 @@ async function updatePrompt(id, data) {
     try {
         await db.collection(PROMPT_COLLECTION).doc(id).update({
             title: data.title,
-            versions: data.versions,
+            variants: data.variants,
             tags: data.tags,
-            imageUrl: data.imageUrl,
             updatedAt: new Date().toISOString()
         });
         showToast('咒語已更新！');
@@ -546,7 +617,7 @@ function filterPrompts(query) {
     return prompts.filter(prompt => {
         const titleMatch = prompt.title.toLowerCase().includes(searchTerm);
         const tagMatch = prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm));
-        const contentMatch = prompt.versions.some(v => v.content.toLowerCase().includes(searchTerm));
+        const contentMatch = prompt.variants.some(v => v.prompt.toLowerCase().includes(searchTerm));
         return titleMatch || tagMatch || contentMatch;
     });
 }
@@ -557,24 +628,24 @@ function createCardElement(prompt) {
     card.className = 'card';
     card.dataset.id = prompt.id;
 
-    const activeVersionIdx = 0;
-    const activeVersion = prompt.versions[activeVersionIdx] || { content: '' };
+    const activeVariantIdx = 0;
+    const activeVariant = prompt.variants[activeVariantIdx] || { prompt: '', imageUrl: null };
 
     const tagsHtml = prompt.tags.length > 0
         ? `<div class="card-tags">${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>`
         : '';
 
-    // Image priority is handled by the data itself (imageUrl field)
-    const imageHtml = prompt.imageUrl
-        ? `<div class="card-image"><img src="${escapeHtml(prompt.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
-        : '';
+    // Image from current variant
+    const imageHtml = activeVariant.imageUrl
+        ? `<div class="card-image" id="card-image-${prompt.id}"><img src="${escapeHtml(activeVariant.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+        : `<div class="card-image" id="card-image-${prompt.id}" style="display:none"></div>`;
 
     let tabsHeaderHtml = '';
-    if (prompt.versions.length > 1) {
-        const tabsBtns = prompt.versions.map((v, idx) =>
+    if (prompt.variants.length > 1) {
+        const tabsBtns = prompt.variants.map((v, idx) =>
             `<button class="tab-btn ${idx === 0 ? 'active' : ''}" 
                 data-idx="${idx}" onclick="handleCardTabSwitch(this, '${prompt.id}', ${idx})">
-                ${escapeHtml(v.label)}
+                ${escapeHtml(v.tabName)}
              </button>`
         ).join('');
         tabsHeaderHtml = `<div class="tabs-header">${tabsBtns}</div>`;
@@ -600,7 +671,7 @@ function createCardElement(prompt) {
         </div>
         <div class="tabs-container">
             ${tabsHeaderHtml}
-            <div class="card-content" id="card-content-${prompt.id}">${escapeHtml(activeVersion.content)}</div>
+            <div class="card-content" id="card-content-${prompt.id}">${escapeHtml(activeVariant.prompt)}</div>
         </div>
         ${tagsHtml}
         ${imageHtml}
@@ -621,7 +692,23 @@ window.handleCardTabSwitch = function (btn, promptId, idx) {
     const card = btn.closest('.card');
     card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(`card-content-${promptId}`).textContent = prompt.versions[idx].content;
+
+    // Update prompt text
+    document.getElementById(`card-content-${promptId}`).textContent = prompt.variants[idx].prompt;
+
+    // Update card image
+    const imgContainer = document.getElementById(`card-image-${promptId}`);
+    if (imgContainer) {
+        const variantImg = prompt.variants[idx].imageUrl;
+        if (variantImg) {
+            imgContainer.innerHTML = `<img src="${escapeHtml(variantImg)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">`;
+            imgContainer.style.display = '';
+        } else {
+            imgContainer.style.display = 'none';
+        }
+    }
+
+    // Update copy button reference
     card.querySelector('.copy-btn').dataset.currentIdx = idx;
 };
 
@@ -643,40 +730,42 @@ function renderCards() {
 // ===== Event Handlers =====
 function handleFormSubmit(e) {
     e.preventDefault();
-    const validVersions = modalVersions.filter(v => v.content.trim() !== '');
-    if (validVersions.length === 0) {
-        showToast('請至少輸入一個版本的內容');
+    const validVariants = modalVariants.filter(v => v.prompt.trim() !== '');
+    if (validVariants.length === 0) {
+        showToast('請至少輸入一個頁籤的內容');
         return;
     }
 
-    // Wrap in async call logic
-    // We can't make the handler async because we might need to preventDefault first etc.
-    // So we use an IIFE or just call it.
-
     (async () => {
-        // Determine Image URL
-        let finalImageUrl = elements.promptImage.value.trim() || null;
+        showToast('儲存中...');
 
-        // Check if file is selected
-        if (elements.imageInput && elements.imageInput.files.length > 0) {
-            const file = elements.imageInput.files[0];
-            try {
-                const uploadedUrl = await uploadImage(file);
-                if (uploadedUrl) {
-                    finalImageUrl = uploadedUrl;
+        // Upload pending files for each variant
+        for (let i = 0; i < modalVariants.length; i++) {
+            const variant = modalVariants[i];
+            if (variant._pendingFile) {
+                try {
+                    const uploadedUrl = await uploadImage(variant._pendingFile);
+                    if (uploadedUrl) {
+                        variant.imageUrl = uploadedUrl;
+                    }
+                } catch (err) {
+                    console.error(`Image upload failed for tab ${i}:`, err);
+                    return; // Stop submission on upload error
                 }
-            } catch (err) {
-                // Error already handled in uploadImage
-                console.error("Image upload failed inside submit handler", err);
-                return; // Stop submission on upload error? User might want to retry.
             }
         }
 
+        // Strip internal _pendingFile field before saving
+        const cleanVariants = modalVariants.map(v => ({
+            tabName: v.tabName || '通用',
+            prompt: v.prompt,
+            imageUrl: v.imageUrl || null
+        }));
+
         const data = {
             title: elements.promptTitle.value.trim(),
-            versions: modalVersions,
-            tags: parseTags(elements.promptTags.value),
-            imageUrl: finalImageUrl
+            variants: cleanVariants,
+            tags: parseTags(elements.promptTags.value)
         };
 
         if (editingId) {
@@ -704,7 +793,7 @@ function handleCardAction(e) {
         case 'delete': openDeleteModal(promptId); break;
         case 'copy':
             const currentIdx = parseInt(actionBtn.dataset.currentIdx || '0');
-            copyToClipboard(prompt.versions[currentIdx]?.content || '');
+            copyToClipboard(prompt.variants[currentIdx]?.prompt || '');
             break;
     }
 }
@@ -728,7 +817,7 @@ function initEventListeners() {
     const handleCloseAttempt = () => {
         if (isFormDirty()) {
             if (confirm("您有未儲存的變更，確定要放棄並關閉嗎？")) {
-                closeModal(true); // Force close
+                closeModal(true);
             }
         } else {
             closeModal(true);
@@ -737,9 +826,6 @@ function initEventListeners() {
 
     elements.modalClose.addEventListener('click', handleCloseAttempt);
     elements.cancelBtn.addEventListener('click', handleCloseAttempt);
-
-    // Overlay click no longer closes the drawer (Persistence)
-    // elements.modalOverlay.addEventListener('click', ...); // REMOVED
 
     elements.addTabBtn.addEventListener('click', addModalTab);
 
@@ -767,41 +853,18 @@ function initEventListeners() {
             else if (elements.modalOverlay.classList.contains('active')) handleCloseAttempt();
         }
     });
-
-    // Image Preview Listeners
-    if (elements.imageInput) {
-        elements.imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const objectUrl = URL.createObjectURL(file);
-                updatePreview(objectUrl);
-            } else {
-                // If file cleared, fallback to URL input or clear
-                updatePreview(elements.promptImage.value);
-            }
-        });
-    }
-
-    if (elements.promptImage) {
-        elements.promptImage.addEventListener('input', (e) => {
-            // Only use URL if no file is selected
-            if (!elements.imageInput.files.length) {
-                updatePreview(e.target.value);
-            }
-        });
-    }
 }
 
 // ===== Dirty State Tracking =====
-let initialFormState = null;
-
 function getFormState() {
     return {
         title: elements.promptTitle.value.trim(),
         tags: elements.promptTags.value.trim(),
-        imageInput: elements.imageInput.value, // File path string (fake)
-        imageUrl: elements.promptImage.value.trim(),
-        versions: JSON.stringify(modalVersions)
+        variants: JSON.stringify(modalVariants.map(v => ({
+            tabName: v.tabName,
+            prompt: v.prompt,
+            imageUrl: v.imageUrl
+        })))
     };
 }
 
@@ -832,41 +895,27 @@ function updatePreview(src) {
 
 // ===== Initialize App =====
 async function init() {
-
-
-    // 2. Subscribe (Moved to Auth State Listener)
-    // subscribeToPrompts();
-
-    // 3. Migrate (Moved to Auth State Listener)
-    // await migrateLocalStorage();
-
     initEventListeners();
     initAuth();
 }
 
 // ===== Authentication Logic =====
 function initAuth() {
-    // Auth State Listener
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             console.log("User signed in:", user.email);
             if (user.email === ALLOWED_EMAIL) {
-                // Authorized
                 currentUser = user;
                 elements.loginOverlay.classList.remove('active');
                 elements.logoutBtn.style.display = 'flex';
                 elements.loginError.style.display = 'none';
 
-                // Initialize Data
                 subscribeToPrompts();
                 await migrateLocalStorage();
             } else {
-                // Unauthorized
                 console.warn("Unauthorized access attempt:", user.email);
                 elements.loginError.style.display = 'flex';
                 elements.loginError.querySelector('span').textContent = `權限不足：${user.email} 無法存取`;
-                // Force sign out from app logic perspective but keep them in "limbo" or sign out?
-                // Better: keep overlay active, show error.
             }
         } else {
             console.log("User signed out");
@@ -874,12 +923,10 @@ function initAuth() {
             elements.loginOverlay.classList.add('active');
             elements.logoutBtn.style.display = 'none';
             elements.loginError.style.display = 'none';
-            // Clear sensitive data from UI if needed
             elements.cardsContainer.innerHTML = '';
         }
     });
 
-    // Login Button
     elements.googleLoginBtn.addEventListener('click', () => {
         const provider = new firebase.auth.GoogleAuthProvider();
         auth.signInWithPopup(provider).catch((error) => {
@@ -888,7 +935,6 @@ function initAuth() {
         });
     });
 
-    // Logout Button
     elements.logoutBtn.addEventListener('click', () => {
         auth.signOut().then(() => {
             showToast('已安全登出');
@@ -910,7 +956,8 @@ async function backupAll() {
     try {
         // 1. Fetch all data from Firestore
         const snapshot = await db.collection(PROMPT_COLLECTION).orderBy('createdAt', 'desc').get();
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const data = rawData.map(normalizeToVariants);
 
         // 2. Build JSON backup string
         const jsonContent = JSON.stringify(data, null, 2);
@@ -922,11 +969,10 @@ async function backupAll() {
             txtLines.push(`標題：${prompt.title || ''}`);
             txtLines.push('=========================================');
 
-            const versions = prompt.versions || [];
-            for (const ver of versions) {
-                txtLines.push(`【${ver.label || '通用'}】`);
-                // Preserve user's original line-breaks exactly
-                txtLines.push(ver.content || '');
+            const variants = prompt.variants || [];
+            for (const v of variants) {
+                txtLines.push(`【${v.tabName || '通用'}】`);
+                txtLines.push(v.prompt || '');
                 txtLines.push('');
             }
 
@@ -942,24 +988,27 @@ async function backupAll() {
         zip.file('system_backup.json', jsonContent);
         zip.file('Prompts_Backup.txt', txtContent);
 
-        // 5. Attempt to fetch images (best-effort, CORS failures are skipped)
+        // 5. Attempt to fetch images from all variants
         const imgFolder = zip.folder('images');
         for (const prompt of data) {
-            const imageUrl = prompt.imageUrl || '';
-            if (!imageUrl) continue;
+            const variants = prompt.variants || [];
+            for (const v of variants) {
+                const imageUrl = v.imageUrl || '';
+                if (!imageUrl) continue;
 
-            // Derive a safe filename from title
-            const safeTitle = (prompt.title || 'prompt').replace(/[\\/:*?"<>|\s]/g, '_');
-            const filename = `${safeTitle}.jpg`;
+                const safeTitle = (prompt.title || 'prompt').replace(/[\\/:*?"<>|\s]/g, '_');
+                const safeTab = (v.tabName || '通用').replace(/[\\/:*?"<>|\s]/g, '_');
+                const filename = `${safeTitle}_${safeTab}.jpg`;
 
-            try {
-                const response = await fetch(imageUrl);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const blob = await response.blob();
-                imgFolder.file(filename, blob);
-            } catch (err) {
-                console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename}`, err);
-                corsFailedImages.push(filename);
+                try {
+                    const response = await fetch(imageUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const blob = await response.blob();
+                    imgFolder.file(filename, blob);
+                } catch (err) {
+                    console.warn(`圖片下載失敗（CORS 或其他原因），已跳過：${filename}`, err);
+                    corsFailedImages.push(filename);
+                }
             }
         }
 
