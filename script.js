@@ -1046,14 +1046,14 @@ window.handleCardTabSwitch = function (btn, promptId, idx) {
     btn.classList.add('active');
 
     // Update prompt text
-    document.getElementById(`card - content - ${promptId} `).textContent = prompt.variants[idx].prompt;
+    document.getElementById(`card-content-${promptId}`).textContent = prompt.variants[idx].prompt;
 
     // Update card image
-    const imgContainer = document.getElementById(`card - image - ${promptId} `);
+    const imgContainer = document.getElementById(`card-image-${promptId}`);
     if (imgContainer) {
         const variantImg = prompt.variants[idx].imageUrl;
         if (variantImg) {
-            imgContainer.innerHTML = `< img src = "${escapeHtml(variantImg)}" alt = "範例圖片" loading = "lazy" onerror = "this.parentElement.style.display='none'" > `;
+            imgContainer.innerHTML = `<img src="${escapeHtml(variantImg)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">`;
             imgContainer.style.display = '';
         } else {
             imgContainer.style.display = 'none';
