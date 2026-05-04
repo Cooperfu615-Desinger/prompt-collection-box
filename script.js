@@ -848,6 +848,16 @@ function handleAddCustomTag() {
 }
 
 // ===== Storage Upload Logic =====
+function sanitizeStorageFileName(fileName) {
+    const safeName = fileName
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .replace(/_+/g, '_');
+
+    return safeName || 'upload';
+}
+
 function uploadImage(file) {
     return new Promise((resolve, reject) => {
         if (!file) {
@@ -855,7 +865,8 @@ function uploadImage(file) {
             return;
         }
 
-        const storageRef = storage.ref(`images / ${Date.now()}_${file.name} `);
+        const storagePath = `images/${Date.now()}_${sanitizeStorageFileName(file.name)}`;
+        const storageRef = storage.ref(storagePath);
         const uploadTask = storageRef.put(file);
 
         uploadTask.on('state_changed',
