@@ -150,17 +150,15 @@ body {
     transform: rotate(45deg);
 }
 
-/* ===== Backup Button ===== */
+/* ===== Import / Backup Buttons ===== */
+.import-btn,
 .backup-btn {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     padding: 0 1rem;
     height: 44px;
-    background: var(--accent-gradient);
-    border: none;
     border-radius: var(--radius-md);
-    color: #fff;
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
@@ -169,11 +167,31 @@ body {
     flex-shrink: 0;
 }
 
+.import-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.import-btn:hover:not(:disabled) {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 10px rgba(124, 58, 237, 0.15);
+    transform: translateY(-1px);
+}
+
+.backup-btn {
+    background: var(--accent-gradient);
+    border: none;
+    color: #fff;
+}
+
 .backup-btn:hover:not(:disabled) {
     opacity: 0.85;
     transform: translateY(-1px);
 }
 
+.import-btn:disabled,
 .backup-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;

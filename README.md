@@ -12,6 +12,7 @@
 - 每筆 Prompt 支援最多 5 個版本頁籤
 - 固定標籤池、自訂標籤、分類顏色與標籤篩選
 - Gemini API 自動產生標題與標籤
+- 匯入外部 Markdown prompt 檔，支援 Prompt 工作台輸出的 `AI Prompt` / `Grok Structured Prompt` / `Z-Image Prompt` 格式
 - 依最後更新、標題、標籤排序
 - ZIP 全量備份，包含 JSON、TXT 與可下載的圖片
 - 舊 LocalStorage 資料自動遷移到 Firestore
@@ -175,6 +176,18 @@ Prompt 文件大致格式：
 5. 下載 `Prompt_Backup.zip`。
 
 圖片下載可能受 CORS 限制而失敗，失敗項目會在備份完成時提示。
+
+## Markdown 匯入流程
+
+點擊「匯入 MD」可以選擇一個或多個 `.md` 檔案。匯入器目前支援 Prompt 工作台輸出的 Markdown 格式，會讀取：
+
+- `## AI Prompt`
+- `## Grok Structured Prompt`
+- `## Z-Image Prompt`
+
+每個 code block 會變成一個 Prompt 版本頁籤。標題會優先從 `Summary` 的場景、服裝與光影組合產生；標籤會從現有標籤庫比對，並包含少量同義詞對應，例如「比基尼」會對應到「泳裝」。
+
+目前匯入只處理文字內容，不會匯入外部圖片檔。
 
 ## 已知技術債
 
