@@ -1,4 +1,17 @@
 {
+  "name": "prompt-collection-box",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prompt 咒語收藏盒，一個 Firebase backed 的單頁 Prompt 收藏工具。",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "start": "npm run dev",
+    "check": "npm run check:syntax && npm run check:ids && npm run test:dom",
+    "check:syntax": "node --check script.js && node --check check_ids.js && node --check test_jsdom.js",
+    "check:ids": "node check_ids.js",
+    "test": "npm run check",
+    "test:dom": "node test_jsdom.js"
+  },
   "dependencies": {
     "jsdom": "^28.1.0"
   }

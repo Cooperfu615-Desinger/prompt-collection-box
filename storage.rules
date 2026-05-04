@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == "cooperfu.615@gmail.com";
+    }
+
+    match /images/{imagePath=**} {
+      allow read, write: if isOwner();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
