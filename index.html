@@ -23,7 +23,7 @@
                 Prompt 咒語收藏盒
             </h1>
             <div class="header-right">
-                <button class="filter-btn" id="filterBtn" onclick="toggleFilterSidebar()" title="開啟標籤篩選">🔍
+                <button class="filter-btn" id="filterBtn" title="開啟標籤篩選">🔍
                     標籤篩選</button>
                 <button class="import-btn" id="importBtn" title="匯入 Markdown Prompt">📤 匯入 MD</button>
                 <input type="file" id="importFileInput" accept=".md,text/markdown,text/plain" multiple hidden>
@@ -84,7 +84,7 @@
     <aside class="filter-sidebar" id="filterSidebar">
         <div class="filter-sidebar-header">
             <h2>🔍 標籤篩選</h2>
-            <button class="sidebar-close" onclick="toggleFilterSidebar()" title="關閉">
+            <button class="sidebar-close" id="filterSidebarCloseBtn" title="關閉">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
@@ -93,7 +93,7 @@
         </div>
         <div class="filter-sidebar-content">
             <div class="filter-actions-top">
-                <button class="clear-filter-btn" id="clearFilterBtn" onclick="clearAllFilters()">🚫 清除所有篩選</button>
+                <button class="clear-filter-btn" id="clearFilterBtn">🚫 清除所有篩選</button>
             </div>
             <div class="filter-categories" id="filterCategoriesContainer">
                 <!-- Categories populated dynamically -->
@@ -116,7 +116,7 @@
                         <option value="光影">光影</option>
                     </select>
                     <input type="text" id="newTagName" class="add-tag-input" placeholder="輸入名稱...">
-                    <button class="add-tag-confirm-btn" onclick="handleAddCustomTag()">確認</button>
+                    <button class="add-tag-confirm-btn" id="addCustomTagBtn">確認</button>
                 </div>
             </div>
         </div>

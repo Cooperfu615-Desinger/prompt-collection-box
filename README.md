@@ -52,8 +52,6 @@ prompt-collection-box/
 ├── firebase.json     # Firebase rules 部署設定
 ├── check_ids.js      # 檢查 JS getElementById 參照是否存在於 HTML
 ├── test_jsdom.js     # 無登入狀態的 DOM smoke test
-├── ids.txt           # DOM id 盤點紀錄
-├── get_ids.txt       # 目前空檔，保留待整理
 ├── package.json      # 本地開發與檢查指令
 ├── package-lock.json
 └── README.md

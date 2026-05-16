@@ -23,6 +23,7 @@ const elements = {
 
     // Existing Elements
     filterBtn: document.getElementById('filterBtn'),
+    filterSidebarCloseBtn: document.getElementById('filterSidebarCloseBtn'),
     filterSidebar: document.getElementById('filterSidebar'),
     filterCategoriesContainer: document.getElementById('filterCategoriesContainer'),
     clearFilterBtn: document.getElementById('clearFilterBtn'),
@@ -69,6 +70,7 @@ const elements = {
     generatePreviewBtn: document.getElementById('generatePreviewBtn'),
     importBtn: document.getElementById('importBtn'),
     importFileInput: document.getElementById('importFileInput'),
+    addCustomTagBtn: document.getElementById('addCustomTagBtn'),
     backupBtn: document.getElementById('backupBtn'),
     sortSelect: document.getElementById('sortSelect')
 };
@@ -518,15 +520,15 @@ window.toggleFilterTag = function (tag) {
     renderCards();
 };
 
-window.clearAllFilters = function () {
+function clearAllFilters() {
     selectedFilterTags = [];
     populateTagFilter();
     renderCards();
-};
+}
 
-window.toggleFilterSidebar = function () {
+function toggleFilterSidebar() {
     document.body.classList.toggle('filter-sidebar-open');
-};
+}
 
 // ===== Add Tag UI Logic =====
 
@@ -677,7 +679,7 @@ function createCardElement(prompt) {
     if (prompt.variants.length > 1) {
         const tabsBtns = prompt.variants.map((v, idx) =>
             `<button class="tab-btn ${idx === 0 ? 'active' : ''}" 
-                data-idx="${idx}" onclick="handleCardTabSwitch(this, '${prompt.id}', ${idx})">
+                data-action="card-tab" data-idx="${idx}">
                 ${escapeHtml(v.tabName)}
              </button>`
         ).join('');
@@ -719,7 +721,7 @@ function createCardElement(prompt) {
     return card;
 }
 
-window.handleCardTabSwitch = function (btn, promptId, idx) {
+function handleCardTabSwitch(btn, promptId, idx) {
     const prompt = prompts.find(p => p.id === promptId);
     if (!prompt) return;
     const card = btn.closest('.card');
@@ -743,7 +745,7 @@ window.handleCardTabSwitch = function (btn, promptId, idx) {
 
     // Update copy button reference
     card.querySelector('.copy-btn').dataset.currentIdx = idx;
-};
+}
 
 function renderCards() {
     const filteredPrompts = filterPrompts();
@@ -762,7 +764,6 @@ function renderCards() {
 
 // ===== Event Handlers =====
 function handleCardAction(e) {
-    if (e.target.closest('.tabs-header')) return;
     const actionBtn = e.target.closest('[data-action]');
     if (!actionBtn) return;
 
@@ -773,6 +774,9 @@ function handleCardAction(e) {
     if (!prompt) return;
 
     switch (action) {
+        case 'card-tab':
+            handleCardTabSwitch(actionBtn, promptId, parseInt(actionBtn.dataset.idx || '0', 10));
+            break;
         case 'edit': openModal(true, prompt); break;
         case 'delete': openDeleteModal(promptId); break;
         case 'copy':
@@ -792,6 +796,10 @@ function handleConfirmDelete() {
 // ===== Event Listeners =====
 function initEventListeners() {
     elements.addBtn.addEventListener('click', () => openModal());
+    elements.filterBtn.addEventListener('click', toggleFilterSidebar);
+    elements.filterSidebarCloseBtn.addEventListener('click', toggleFilterSidebar);
+    elements.clearFilterBtn.addEventListener('click', clearAllFilters);
+    elements.addCustomTagBtn.addEventListener('click', handleAddCustomTag);
 
     // Updated Close Logic with Persistence Check
     const handleCloseAttempt = async () => {
@@ -848,7 +856,7 @@ function initEventListeners() {
             else if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
             else if (elements.deleteModalOverlay.classList.contains('active')) closeDeleteModal();
             else if (elements.modalOverlay.classList.contains('active')) handleCloseAttempt();
-            else if (document.body.classList.contains('filter-sidebar-open')) window.toggleFilterSidebar();
+            else if (document.body.classList.contains('filter-sidebar-open')) toggleFilterSidebar();
         }
     });
 }
