@@ -119,7 +119,7 @@ async function handleMarkdownImportChange(e) {
     e.target.value = '';
 
     if (failures.length > 0) {
-        alert(`已匯入 ${importedCount} 個檔案。\n\n以下檔案匯入失敗：\n${failures.join('\n')}`);
+        showAppAlert(`已匯入 ${importedCount} 個檔案。\n\n以下檔案匯入失敗：\n${failures.join('\n')}`, '匯入完成');
     } else {
         showToast(`成功匯入 ${importedCount} 個 Markdown 檔`);
     }

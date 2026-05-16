@@ -75,11 +75,11 @@ async function backupAll() {
             msg += `\n\n注意：以下 ${corsFailedImages.length} 張圖片因 CORS 限制無法下載，已跳過：\n`;
             msg += corsFailedImages.join('\n');
         }
-        alert(msg);
+        showAppAlert(msg, '備份完成');
 
     } catch (err) {
         console.error('備份失敗：', err);
-        alert('備份失敗，請確認網路連線與登入狀態。\n錯誤：' + err.message);
+        showAppAlert('備份失敗，請確認網路連線與登入狀態。\n錯誤：' + err.message, '備份失敗');
     } finally {
         btn.textContent = '📥 全部備份';
         btn.disabled = false;

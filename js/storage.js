@@ -27,7 +27,7 @@ function uploadImage(file) {
             },
             (error) => {
                 console.error("Upload failed:", error);
-                alert("上傳失敗：" + error.message);
+                showAppAlert("上傳失敗：" + error.message, "上傳失敗");
                 reject(error);
             },
             () => {

@@ -313,7 +313,7 @@ async function generatePreviewImage() {
         showToast('預覽圖已生成，儲存後會上傳');
     } catch (error) {
         console.error('Preview image generation error:', error);
-        alert(`圖片生成失敗：${error.message}`);
+        showAppAlert(`圖片生成失敗：${error.message}`, '圖片生成失敗');
     } finally {
         setPreviewGenerateLoading(false);
     }

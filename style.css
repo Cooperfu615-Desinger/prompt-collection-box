@@ -1278,6 +1278,11 @@ body.filter-sidebar-open .filter-sidebar {
     background: var(--danger-hover);
 }
 
+/* ===== App Dialog ===== */
+.app-dialog-message {
+    white-space: pre-wrap;
+}
+
 /* ===== Toast ===== */
 .toast {
     position: fixed;

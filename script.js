@@ -50,6 +50,12 @@ const elements = {
     deletePromptId: document.getElementById('deletePromptId'),
     cancelDeleteBtn: document.getElementById('cancelDeleteBtn'),
     confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
+    appDialogOverlay: document.getElementById('appDialogOverlay'),
+    appDialogTitle: document.getElementById('appDialogTitle'),
+    appDialogMessage: document.getElementById('appDialogMessage'),
+    appDialogClose: document.getElementById('appDialogClose'),
+    appDialogCancelBtn: document.getElementById('appDialogCancelBtn'),
+    appDialogConfirmBtn: document.getElementById('appDialogConfirmBtn'),
     toast: document.getElementById('toast'),
     toastMessage: document.getElementById('toastMessage'),
     settingsBtn: document.getElementById('settingsBtn'),
@@ -173,6 +179,45 @@ function showToast(message = '已複製到剪貼簿！') {
     setTimeout(() => {
         elements.toast.classList.remove('visible');
     }, 2500);
+}
+
+function showAppDialog({ title = '提示', message = '', confirmText = '確認', cancelText = '取消', showCancel = false } = {}) {
+    return new Promise((resolve) => {
+        elements.appDialogTitle.textContent = title;
+        elements.appDialogMessage.textContent = message;
+        elements.appDialogConfirmBtn.textContent = confirmText;
+        elements.appDialogCancelBtn.textContent = cancelText;
+        elements.appDialogCancelBtn.style.display = showCancel ? '' : 'none';
+        elements.appDialogOverlay.classList.add('active');
+
+        const close = (result) => {
+            elements.appDialogOverlay.classList.remove('active');
+            elements.appDialogConfirmBtn.removeEventListener('click', onConfirm);
+            elements.appDialogCancelBtn.removeEventListener('click', onCancel);
+            elements.appDialogClose.removeEventListener('click', onCancel);
+            elements.appDialogOverlay.removeEventListener('click', onOverlayClick);
+            resolve(result);
+        };
+
+        const onConfirm = () => close(true);
+        const onCancel = () => close(false);
+        const onOverlayClick = (e) => {
+            if (e.target === elements.appDialogOverlay) close(false);
+        };
+
+        elements.appDialogConfirmBtn.addEventListener('click', onConfirm);
+        elements.appDialogCancelBtn.addEventListener('click', onCancel);
+        elements.appDialogClose.addEventListener('click', onCancel);
+        elements.appDialogOverlay.addEventListener('click', onOverlayClick);
+    });
+}
+
+function showAppAlert(message, title = '提示') {
+    return showAppDialog({ title, message, confirmText: '確認', showCancel: false });
+}
+
+function showAppConfirm(message, title = '確認') {
+    return showAppDialog({ title, message, confirmText: '確認', cancelText: '取消', showCancel: true });
 }
 
 // ===== Settings Modal Functions =====
@@ -749,9 +794,9 @@ function initEventListeners() {
     elements.addBtn.addEventListener('click', () => openModal());
 
     // Updated Close Logic with Persistence Check
-    const handleCloseAttempt = () => {
+    const handleCloseAttempt = async () => {
         if (isFormDirty()) {
-            if (confirm("您有未儲存的變更，確定要放棄並關閉嗎？")) {
+            if (await showAppConfirm("您有未儲存的變更，確定要放棄並關閉嗎？", "放棄變更")) {
                 closeModal(true);
             }
         } else {
@@ -798,7 +843,8 @@ function initEventListeners() {
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (elements.tagPickerModalOverlay.classList.contains('active')) closeTagPickerModal();
+            if (elements.appDialogOverlay.classList.contains('active')) return;
+            else if (elements.tagPickerModalOverlay.classList.contains('active')) closeTagPickerModal();
             else if (elements.settingsModalOverlay.classList.contains('active')) closeSettingsModal();
             else if (elements.deleteModalOverlay.classList.contains('active')) closeDeleteModal();
             else if (elements.modalOverlay.classList.contains('active')) handleCloseAttempt();
@@ -856,7 +902,7 @@ function initAuth() {
         const provider = new firebase.auth.GoogleAuthProvider();
         auth.signInWithPopup(provider).catch((error) => {
             console.error("Login failed:", error);
-            alert("登入失敗：" + error.message);
+            showAppAlert("登入失敗：" + error.message, "登入失敗");
         });
     });
 

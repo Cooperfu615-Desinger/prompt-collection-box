@@ -294,6 +294,28 @@
         </div>
     </div>
 
+    <!-- App Dialog -->
+    <div class="modal-overlay" id="appDialogOverlay">
+        <div class="modal modal-small app-dialog">
+            <div class="modal-header">
+                <h2 id="appDialogTitle">提示</h2>
+                <button class="modal-close" id="appDialogClose" title="關閉">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="app-dialog-message" id="appDialogMessage"></p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="appDialogCancelBtn">取消</button>
+                <button type="button" class="btn btn-primary" id="appDialogConfirmBtn">確認</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div class="toast" id="toast">
         <span class="toast-icon">✓</span>
