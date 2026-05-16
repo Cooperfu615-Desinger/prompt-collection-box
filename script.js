@@ -108,6 +108,7 @@ const elements = {
     modalTabsList: document.getElementById('modalTabsList'),
     modalTabsPanels: document.getElementById('modalTabsPanels'),
     addTabBtn: document.getElementById('addTabBtn'),
+    deleteTabBtn: document.getElementById('deleteTabBtn'),
     cancelBtn: document.getElementById('cancelBtn'),
     deleteModalOverlay: document.getElementById('deleteModalOverlay'),
     deletePromptId: document.getElementById('deletePromptId'),
@@ -279,20 +280,15 @@ function renderModalTabs() {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = `tab-btn ${index === activeModalTabIdx ? 'active' : ''}`;
+        btn.draggable = true;
+        btn.dataset.idx = index;
         btn.textContent = variant.tabName || `Tab ${index + 1}`;
         btn.onclick = () => switchModalTab(index);
-
-        // Delete "x" badge (only if more than 1 tab)
-        if (modalVariants.length > 1) {
-            const closeSpan = document.createElement('span');
-            closeSpan.className = 'tab-close';
-            closeSpan.textContent = '×';
-            closeSpan.onclick = (e) => {
-                e.stopPropagation();
-                deleteModalTab(index);
-            };
-            btn.appendChild(closeSpan);
-        }
+        btn.ondragstart = (e) => handleModalTabDragStart(e, index);
+        btn.ondragover = handleModalTabDragOver;
+        btn.ondragleave = handleModalTabDragLeave;
+        btn.ondrop = (e) => handleModalTabDrop(e, index);
+        btn.ondragend = handleModalTabDragEnd;
 
         elements.modalTabsList.appendChild(btn);
 
@@ -407,6 +403,7 @@ function renderModalTabs() {
     });
 
     elements.addTabBtn.disabled = modalVariants.length >= MAX_VARIANTS;
+    elements.deleteTabBtn.disabled = modalVariants.length <= 1;
 
     // Update left preview to current tab's image
     const currentVariant = modalVariants[activeModalTabIdx];
@@ -424,6 +421,50 @@ function switchModalTab(index) {
     renderModalTabs();
 }
 
+function moveModalTab(fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    const activeVariant = modalVariants[activeModalTabIdx];
+    const [movedVariant] = modalVariants.splice(fromIndex, 1);
+    modalVariants.splice(toIndex, 0, movedVariant);
+    activeModalTabIdx = modalVariants.indexOf(activeVariant);
+    renderModalTabs();
+}
+
+function handleModalTabDragStart(e, index) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    e.currentTarget.classList.add('dragging');
+}
+
+function handleModalTabDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleModalTabDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleModalTabDrop(e, toIndex) {
+    e.preventDefault();
+    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    clearModalTabDragClasses();
+    if (Number.isInteger(fromIndex)) {
+        moveModalTab(fromIndex, toIndex);
+    }
+}
+
+function handleModalTabDragEnd() {
+    clearModalTabDragClasses();
+}
+
+function clearModalTabDragClasses() {
+    elements.modalTabsList.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('dragging', 'drag-over');
+    });
+}
+
 function addModalTab() {
     if (modalVariants.length >= MAX_VARIANTS) return;
     const nextNum = modalVariants.length + 1;
@@ -432,9 +473,9 @@ function addModalTab() {
     renderModalTabs();
 }
 
-function deleteModalTab(index) {
+function deleteActiveModalTab() {
     if (modalVariants.length <= 1) return;
-    modalVariants.splice(index, 1);
+    modalVariants.splice(activeModalTabIdx, 1);
     if (activeModalTabIdx >= modalVariants.length) {
         activeModalTabIdx = modalVariants.length - 1;
     }
@@ -1449,6 +1490,7 @@ function initEventListeners() {
     elements.cancelBtn.addEventListener('click', handleCloseAttempt);
 
     elements.addTabBtn.addEventListener('click', addModalTab);
+    elements.deleteTabBtn.addEventListener('click', deleteActiveModalTab);
 
     elements.promptForm.addEventListener('submit', handleFormSubmit);
     elements.cardsContainer.addEventListener('click', handleCardAction);

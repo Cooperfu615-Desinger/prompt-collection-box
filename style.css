@@ -1130,6 +1130,10 @@ body.filter-sidebar-open .filter-sidebar {
     border-top: 1px solid var(--border-color);
 }
 
+.delete-tab-action {
+    margin-right: auto;
+}
+
 /* ===== Label with Action ===== */
 .label-with-action {
     display: flex;
@@ -1387,6 +1391,15 @@ body.filter-sidebar-open .filter-sidebar {
     background: rgba(124, 58, 237, 0.05);
 }
 
+.tab-btn.dragging {
+    opacity: 0.45;
+}
+
+.tab-btn.drag-over {
+    border-color: var(--accent-primary);
+    background: rgba(124, 58, 237, 0.12);
+}
+
 /* Form Specific Tabs */
 .form-tabs .tabs-header {
     justify-content: space-between;
@@ -1449,26 +1462,6 @@ body.filter-sidebar-open .filter-sidebar {
 .version-label-input {
     width: 100%;
     margin-bottom: 0.75rem;
-}
-
-/* Tab Close Button */
-.tab-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-left: 0.35rem;
-    font-size: 14px;
-    line-height: 1;
-    border-radius: 50%;
-    color: var(--text-muted);
-    transition: all var(--transition-fast);
-}
-
-.tab-close:hover {
-    background: var(--danger);
-    color: #fff;
 }
 
 /* Per-Tab Image Upload Section */
