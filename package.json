@@ -7,7 +7,7 @@
     "dev": "python3 -m http.server 8080",
     "start": "npm run dev",
     "check": "npm run check:syntax && npm run check:ids && npm run test:dom",
-    "check:syntax": "node --check js/config.js && node --check js/firebase.js && node --check js/storage.js && node --check js/gemini-image.js && node --check script.js && node --check check_ids.js && node --check test_jsdom.js",
+    "check:syntax": "node --check js/config.js && node --check js/firebase.js && node --check js/storage.js && node --check js/gemini-image.js && node --check js/markdown-import.js && node --check js/backup.js && node --check script.js && node --check check_ids.js && node --check test_jsdom.js",
     "check:ids": "node check_ids.js",
     "test": "npm run check",
     "test:dom": "node test_jsdom.js"

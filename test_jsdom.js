@@ -78,7 +78,9 @@ const appScripts = [
     'js/firebase.js',
     'js/storage.js',
     'js/gemini-image.js',
-    'script.js'
+    'script.js',
+    'js/markdown-import.js',
+    'js/backup.js'
 ].map((scriptPath) => fs.readFileSync(scriptPath, 'utf-8')).join('\n\n');
 
 dom.window.eval(appScripts);
