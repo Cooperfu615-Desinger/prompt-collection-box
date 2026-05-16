@@ -67,51 +67,26 @@ const elements = {
     sortSelect: document.getElementById('sortSelect')
 };
 
-// ===== Data Migration Helper =====
-// Converts old format to new variants format
-function normalizeToVariants(doc) {
-    // Already has variants → return as-is
-    if (doc.variants && Array.isArray(doc.variants)) return doc;
-
-    const variants = [];
-    if (doc.versions && Array.isArray(doc.versions)) {
-        // Old versions[] + top-level imageUrl
-        doc.versions.forEach((v, idx) => {
-            variants.push({
-                tabName: v.label || '通用',
-                prompt: v.content || '',
-                imageUrl: idx === 0 ? (doc.imageUrl || null) : null
-            });
-        });
-    } else {
-        // Very old: single content field
-        variants.push({
-            tabName: '通用',
-            prompt: doc.content || '',
-            imageUrl: doc.imageUrl || null
-        });
-    }
-
-    return { ...doc, variants };
+function handlePromptsLoaded(loadedPrompts) {
+    prompts = loadedPrompts;
+    console.log(`Loaded ${prompts.length} prompts from Firestore.`);
+    populateTagFilter();
+    renderCards();
 }
 
-// ===== Firestore Logic (Compat Syntax) =====
+function handlePromptsError(error) {
+    console.error("Firestore Error (Snapshot):", error);
+    showToast("無法載入資料，請檢查網路連線");
+}
 
-// Listen for real-time updates
-function subscribeToPrompts() {
-    return db.collection(PROMPT_COLLECTION)
-        .onSnapshot((snapshot) => {
-            prompts = snapshot.docs.map(doc => {
-                const raw = { id: doc.id, ...doc.data() };
-                return normalizeToVariants(raw);
-            });
-            console.log(`Loaded ${prompts.length} prompts from Firestore.`);
-            populateTagFilter();
-            renderCards();
-        }, (error) => {
-            console.error("Firestore Error (Snapshot):", error);
-            showToast("無法載入資料，請檢查網路連線");
-        });
+function handleCustomTagsLoaded(loadedCustomTags) {
+    customTags = loadedCustomTags;
+    console.log('Custom tags loaded:', customTags);
+    populateTagFilter();
+}
+
+function handleCustomTagsError(error) {
+    console.error('Custom tags subscription error:', error);
 }
 
 function stopRealtimeSubscriptions() {
@@ -127,42 +102,19 @@ function stopRealtimeSubscriptions() {
 
 function startRealtimeSubscriptions() {
     stopRealtimeSubscriptions();
-    unsubscribePrompts = subscribeToPrompts();
-    unsubscribeCustomTags = subscribeToCustomTags();
+    unsubscribePrompts = subscribeToPrompts(handlePromptsLoaded, handlePromptsError);
+    unsubscribeCustomTags = subscribeToCustomTags(handleCustomTagsLoaded, handleCustomTagsError);
 }
 
-// Data Migration from LocalStorage
 async function migrateLocalStorage() {
-    const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!localData) return;
-
     try {
-        const parsedData = JSON.parse(localData);
-        if (parsedData && Array.isArray(parsedData) && parsedData.length > 0) {
-
-            showToast("正在遷移舊資料至雲端...");
-            console.log(`Migrating ${parsedData.length} prompts...`);
-
-            const batch = db.batch();
-            let count = 0;
-
-            parsedData.forEach(p => {
-                const docRef = db.collection(PROMPT_COLLECTION).doc();
-                const normalized = normalizeToVariants(p);
-
-                batch.set(docRef, {
-                    title: normalized.title || 'Untitled',
-                    variants: normalized.variants,
-                    tags: normalized.tags || [],
-                    createdAt: normalized.createdAt || new Date().toISOString(),
-                    migratedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                count++;
-            });
-
-            await batch.commit();
+        const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!localData) return;
+        showToast("正在遷移舊資料至雲端...");
+        console.log("Migrating local prompts...");
+        const count = await migrateLocalStoragePrompts();
+        if (count > 0) {
             console.log("Migration complete.");
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
             showToast(`成功遷移 ${count} 筆咒語！`);
         }
     } catch (e) {
@@ -541,52 +493,6 @@ function getAllTagNames() {
     return Object.values(pool).flat();
 }
 
-// Subscribe to custom tags from Firestore
-function subscribeToCustomTags() {
-    return db.collection(TAG_POOL_COLLECTION).onSnapshot((snapshot) => {
-        customTags = {};
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            // Each doc: { category: 'xxx', tags: ['a','b'] }
-            if (data.category && Array.isArray(data.tags)) {
-                if (!customTags[data.category]) customTags[data.category] = [];
-                data.tags.forEach(t => {
-                    if (!customTags[data.category].includes(t)) customTags[data.category].push(t);
-                });
-            }
-        });
-        console.log('Custom tags loaded:', customTags);
-        populateTagFilter();
-    }, (error) => {
-        console.error('Custom tags subscription error:', error);
-    });
-}
-
-async function addCustomTag(category, tagName) {
-    const trimmed = tagName.trim();
-    if (!trimmed) return;
-    // Check if it already exists in fixed pool
-    const pool = getFullTagPool();
-    if (pool[category] && pool[category].includes(trimmed)) {
-        showToast('此標籤已存在');
-        return;
-    }
-    try {
-        // Find or create the category doc
-        const snapshot = await db.collection(TAG_POOL_COLLECTION).where('category', '==', category).get();
-        if (snapshot.empty) {
-            await db.collection(TAG_POOL_COLLECTION).add({ category, tags: [trimmed] });
-        } else {
-            const docRef = snapshot.docs[0].ref;
-            await docRef.update({ tags: firebase.firestore.FieldValue.arrayUnion(trimmed) });
-        }
-        showToast(`已新增標籤「${trimmed}」到「${category}」`);
-    } catch (err) {
-        console.error('Add custom tag error:', err);
-        showToast('新增標籤失敗');
-    }
-}
-
 // ===== AI Title + Tag Generation =====
 function setGenerateBtnLoading(isLoading) {
     const btn = elements.aiGenerateBtn;
@@ -914,17 +820,26 @@ function handleAddCustomTag() {
     nameInput.value = '';
 }
 
-// ===== CRUD Operations (Compat) =====
+async function addCustomTag(category, tagName) {
+    const trimmed = tagName.trim();
+    if (!trimmed) return;
+    const pool = getFullTagPool();
+    if (pool[category] && pool[category].includes(trimmed)) {
+        showToast('此標籤已存在');
+        return;
+    }
+    try {
+        await saveCustomTag(category, trimmed);
+        showToast(`已新增標籤「${trimmed}」到「${category}」`);
+    } catch (err) {
+        console.error('Add custom tag error:', err);
+        showToast('新增標籤失敗');
+    }
+}
+
 async function addPrompt(data) {
     try {
-        const now = new Date().toISOString();
-        await db.collection(PROMPT_COLLECTION).add({
-            title: data.title,
-            variants: data.variants,
-            tags: data.tags,
-            createdAt: now,
-            updatedAt: now
-        });
+        await createPrompt(data);
         showToast('咒語已新增！');
         console.log("Firestore 連線成功！(Add)");
     } catch (error) {
@@ -935,12 +850,7 @@ async function addPrompt(data) {
 
 async function updatePrompt(id, data) {
     try {
-        await db.collection(PROMPT_COLLECTION).doc(id).update({
-            title: data.title,
-            variants: data.variants,
-            tags: data.tags,
-            updatedAt: new Date().toISOString()
-        });
+        await savePrompt(id, data);
         showToast('咒語已更新！');
         console.log("Firestore 連線成功！(Update)");
     } catch (error) {
@@ -950,7 +860,7 @@ async function updatePrompt(id, data) {
 }
 
 function deletePrompt(id) {
-    db.collection(PROMPT_COLLECTION).doc(id).delete()
+    removePrompt(id)
         .then(() => {
             showToast('咒語已刪除！');
             console.log("Firestore 連線成功！(Delete)");

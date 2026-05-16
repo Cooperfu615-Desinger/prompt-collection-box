@@ -41,6 +41,7 @@ prompt-collection-box/
 ├── js/
 │   ├── config.js     # Firebase config、常數、模型與標籤設定
 │   ├── firebase.js   # Firebase compat 初始化與 service handles
+│   ├── prompt-store.js # Firestore 訂閱、CRUD、遷移與自訂標籤資料層
 │   ├── storage.js    # Firebase Storage 上傳 helper
 │   ├── gemini-image.js # Gemini 圖片生成 client
 │   ├── markdown-import.js # Markdown Prompt 匯入解析與事件處理

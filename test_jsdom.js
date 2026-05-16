@@ -76,6 +76,7 @@ dom.window.firebase.firestore.FieldValue = {
 const appScripts = [
     'js/config.js',
     'js/firebase.js',
+    'js/prompt-store.js',
     'js/storage.js',
     'js/gemini-image.js',
     'script.js',
