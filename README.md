@@ -44,6 +44,7 @@ prompt-collection-box/
 │   ├── prompt-store.js # Firestore 訂閱、CRUD、遷移與自訂標籤資料層
 │   ├── storage.js    # Firebase Storage 上傳 helper
 │   ├── gemini-image.js # Gemini 圖片生成 client
+│   ├── modal-editor.js # 新增/編輯抽屜、頁籤、圖片預覽與表單提交
 │   ├── markdown-import.js # Markdown Prompt 匯入解析與事件處理
 │   └── backup.js      # ZIP 備份流程
 ├── firestore.rules   # Firestore 私人單帳號安全規則
