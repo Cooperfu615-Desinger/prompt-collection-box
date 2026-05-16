@@ -76,6 +76,8 @@ let currentSortMode = 'updatedAt';
 let modalTags = []; // Current tags in modal editor
 let selectedFilterTags = []; // Active filter tags on main screen
 let customTags = {}; // Custom tags from Firestore, same structure as FIXED_TAG_POOL
+let unsubscribePrompts = null;
+let unsubscribeCustomTags = null;
 
 // ===== DOM Elements =====
 const elements = {
@@ -163,7 +165,7 @@ function normalizeToVariants(doc) {
 
 // Listen for real-time updates
 function subscribeToPrompts() {
-    db.collection(PROMPT_COLLECTION)
+    return db.collection(PROMPT_COLLECTION)
         .onSnapshot((snapshot) => {
             prompts = snapshot.docs.map(doc => {
                 const raw = { id: doc.id, ...doc.data() };
@@ -176,6 +178,23 @@ function subscribeToPrompts() {
             console.error("Firestore Error (Snapshot):", error);
             showToast("無法載入資料，請檢查網路連線");
         });
+}
+
+function stopRealtimeSubscriptions() {
+    if (typeof unsubscribePrompts === 'function') {
+        unsubscribePrompts();
+        unsubscribePrompts = null;
+    }
+    if (typeof unsubscribeCustomTags === 'function') {
+        unsubscribeCustomTags();
+        unsubscribeCustomTags = null;
+    }
+}
+
+function startRealtimeSubscriptions() {
+    stopRealtimeSubscriptions();
+    unsubscribePrompts = subscribeToPrompts();
+    unsubscribeCustomTags = subscribeToCustomTags();
 }
 
 // Data Migration from LocalStorage
@@ -590,7 +609,7 @@ function getAllTagNames() {
 
 // Subscribe to custom tags from Firestore
 function subscribeToCustomTags() {
-    db.collection(TAG_POOL_COLLECTION).onSnapshot((snapshot) => {
+    return db.collection(TAG_POOL_COLLECTION).onSnapshot((snapshot) => {
         customTags = {};
         snapshot.docs.forEach(doc => {
             const data = doc.data();
@@ -1584,26 +1603,36 @@ function initAuth() {
         if (user) {
             console.log("User signed in:", user.email);
             if (user.email === ALLOWED_EMAIL) {
+                stopRealtimeSubscriptions();
                 currentUser = user;
                 elements.loginOverlay.classList.remove('active');
                 elements.logoutBtn.style.display = 'flex';
                 elements.loginError.style.display = 'none';
 
-                subscribeToPrompts();
-                subscribeToCustomTags();
+                startRealtimeSubscriptions();
                 await migrateLocalStorage();
             } else {
                 console.warn("Unauthorized access attempt:", user.email);
+                stopRealtimeSubscriptions();
+                currentUser = null;
+                prompts = [];
+                customTags = {};
                 elements.loginError.style.display = 'flex';
                 elements.loginError.querySelector('span').textContent = `權限不足：${user.email} 無法存取`;
+                elements.cardsContainer.innerHTML = '';
+                elements.emptyState.classList.remove('visible');
             }
         } else {
             console.log("User signed out");
+            stopRealtimeSubscriptions();
             currentUser = null;
+            prompts = [];
+            customTags = {};
             elements.loginOverlay.classList.add('active');
             elements.logoutBtn.style.display = 'none';
             elements.loginError.style.display = 'none';
             elements.cardsContainer.innerHTML = '';
+            elements.emptyState.classList.remove('visible');
         }
     });
 
