@@ -54,7 +54,14 @@ const IMPORT_TAG_SYNONYMS = {
 // ===== Data Model =====
 const LOCAL_STORAGE_KEY = 'prompt-collection-box';
 const API_KEY_STORAGE = 'gemini-api-key';
+const IMAGE_MODEL_STORAGE = 'gemini-image-model';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const GEMINI_IMAGE_MODELS = [
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image-preview',
+    'gemini-2.5-flash-image'
+];
+const DEFAULT_GEMINI_IMAGE_MODEL = GEMINI_IMAGE_MODELS[0];
 const MAX_VARIANTS = 5;
 
 // ===== State =====
@@ -112,9 +119,11 @@ const elements = {
     settingsModalOverlay: document.getElementById('settingsModalOverlay'),
     settingsModalClose: document.getElementById('settingsModalClose'),
     apiKeyInput: document.getElementById('apiKeyInput'),
+    imageModelSelect: document.getElementById('imageModelSelect'),
     saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
     cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
     aiGenerateBtn: document.getElementById('aiGenerateBtn'),
+    generatePreviewBtn: document.getElementById('generatePreviewBtn'),
     importBtn: document.getElementById('importBtn'),
     importFileInput: document.getElementById('importFileInput'),
     backupBtn: document.getElementById('backupBtn'),
@@ -221,6 +230,17 @@ function saveApiKey(key) {
         localStorage.removeItem(API_KEY_STORAGE);
     }
     return true;
+}
+
+function getImageModel() {
+    const storedModel = localStorage.getItem(IMAGE_MODEL_STORAGE);
+    return GEMINI_IMAGE_MODELS.includes(storedModel) ? storedModel : DEFAULT_GEMINI_IMAGE_MODEL;
+}
+
+function saveImageModel(model) {
+    const selectedModel = GEMINI_IMAGE_MODELS.includes(model) ? model : DEFAULT_GEMINI_IMAGE_MODEL;
+    localStorage.setItem(IMAGE_MODEL_STORAGE, selectedModel);
+    return selectedModel;
 }
 
 // ===== Utility Functions =====
@@ -484,6 +504,7 @@ function closeDeleteModal() {
 function openSettingsModal() {
     const existingKey = getApiKey();
     elements.apiKeyInput.value = existingKey;
+    elements.imageModelSelect.value = getImageModel();
     elements.settingsModalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     setTimeout(() => elements.apiKeyInput.focus(), 100);
@@ -496,8 +517,10 @@ function closeSettingsModal() {
 
 function handleSaveApiKey() {
     const key = elements.apiKeyInput.value;
+    const imageModel = elements.imageModelSelect.value;
     saveApiKey(key);
-    showToast(key ? 'API Key 已儲存！' : 'API Key 已清除！');
+    saveImageModel(imageModel);
+    showToast(key ? 'API Key 與圖片模型已儲存！' : 'API Key 已清除，圖片模型已儲存！');
     closeSettingsModal();
 }
 
@@ -666,6 +689,107 @@ ${allContent}`
         showToast('生成失敗，請檢查 API Key 或重試');
     } finally {
         setGenerateBtnLoading(false);
+    }
+}
+
+// ===== AI Image Preview Generation =====
+function setPreviewGenerateLoading(isLoading) {
+    const btn = elements.generatePreviewBtn;
+    const textSpan = btn.querySelector('.generate-preview-text');
+    if (isLoading) {
+        btn.classList.add('loading');
+        btn.disabled = true;
+        textSpan.textContent = '生成中...';
+    } else {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        textSpan.textContent = '生成預覽圖';
+    }
+}
+
+function getGeneratedImagePart(responseData) {
+    const parts = responseData?.candidates?.[0]?.content?.parts || [];
+    return parts.find(part => part.inlineData || part.inline_data) || null;
+}
+
+function base64ImageToFile(base64Data, mimeType = 'image/png') {
+    const byteCharacters = atob(base64Data);
+    const byteArrays = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
+        byteArrays.push(new Uint8Array(byteNumbers));
+    }
+
+    const extension = mimeType.includes('jpeg') ? 'jpg' : 'png';
+    return new File(byteArrays, `gemini-preview-${Date.now()}.${extension}`, { type: mimeType });
+}
+
+async function requestGeminiPreviewImage(prompt, apiKey, model) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+                responseModalities: ['TEXT', 'IMAGE']
+            }
+        })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = data?.error?.message || `API error: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const imagePart = getGeneratedImagePart(data);
+    const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+    if (!inlineData?.data) {
+        throw new Error('Gemini 未回傳圖片');
+    }
+
+    return base64ImageToFile(inlineData.data, inlineData.mimeType || inlineData.mime_type || 'image/png');
+}
+
+async function generatePreviewImage() {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        showToast('請先至設定輸入 Gemini API Key');
+        openSettingsModal();
+        return;
+    }
+
+    const currentVariant = modalVariants[activeModalTabIdx];
+    const prompt = currentVariant?.prompt?.trim();
+    if (!prompt) {
+        showToast('請先在目前頁籤輸入 Prompt');
+        return;
+    }
+
+    setPreviewGenerateLoading(true);
+
+    try {
+        const model = getImageModel();
+        showToast('正在生成預覽圖...');
+        const imageFile = await requestGeminiPreviewImage(prompt, apiKey, model);
+
+        currentVariant._pendingFile = imageFile;
+        currentVariant.imageUrl = '';
+        updatePreview(URL.createObjectURL(imageFile));
+        renderModalTabs();
+        showToast('預覽圖已生成，儲存後會上傳');
+    } catch (error) {
+        console.error('Preview image generation error:', error);
+        alert(`圖片生成失敗：${error.message}`);
+    } finally {
+        setPreviewGenerateLoading(false);
     }
 }
 
@@ -1348,6 +1472,7 @@ function initEventListeners() {
     elements.settingsModalOverlay.addEventListener('click', (e) => { if (e.target === elements.settingsModalOverlay) closeSettingsModal(); });
 
     elements.aiGenerateBtn.addEventListener('click', generateTitleWithAI);
+    elements.generatePreviewBtn.addEventListener('click', generatePreviewImage);
     elements.importBtn.addEventListener('click', () => elements.importFileInput.click());
     elements.importFileInput.addEventListener('change', handleMarkdownImportChange);
     elements.backupBtn.addEventListener('click', backupAll);

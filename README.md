@@ -12,6 +12,7 @@
 - 每筆 Prompt 支援最多 5 個版本頁籤
 - 固定標籤池、自訂標籤、分類顏色與標籤篩選
 - Gemini API 自動產生標題與標籤
+- Gemini 圖片模型生成目前頁籤的預覽圖，可在設定中切換模型
 - 匯入外部 Markdown prompt 檔，支援 Prompt 工作台輸出的 `AI Prompt` / `Grok Structured Prompt` / `Z-Image Prompt` 格式
 - 依最後更新、標題、標籤排序
 - ZIP 全量備份，包含 JSON、TXT 與可下載的圖片
@@ -135,6 +136,7 @@ Gemini API Key 由使用者在設定視窗輸入，儲存在瀏覽器 LocalStora
 - 這種做法適合私人工具與本地使用。
 - 若未來要開放多人使用，建議改由後端或 serverless function 代理，避免 API key 暴露在瀏覽器環境。
 - Gemini model 目前使用 `gemini-2.0-flash:generateContent`。
+- 圖片生成模型可在設定中選擇，支援 `gemini-3.1-flash-image-preview`、`gemini-3-pro-image-preview` 與 `gemini-2.5-flash-image`。
 
 ## 資料模型概覽
 

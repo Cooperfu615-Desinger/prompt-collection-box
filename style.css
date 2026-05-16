@@ -382,7 +382,8 @@ body.filter-sidebar-open .filter-sidebar {
 }
 
 .add-tag-select,
-.add-tag-input {
+.add-tag-input,
+.settings-select {
     width: 100%;
     padding: 0.6rem 0.75rem;
     background: var(--bg-code);
@@ -394,7 +395,8 @@ body.filter-sidebar-open .filter-sidebar {
 }
 
 .add-tag-select:focus,
-.add-tag-input:focus {
+.add-tag-input:focus,
+.settings-select:focus {
     outline: none;
     border-color: var(--accent-primary);
 }
@@ -876,6 +878,47 @@ body.filter-sidebar-open .filter-sidebar {
 
 .preview-icon {
     font-size: 3rem;
+}
+
+.generate-preview-btn {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-width: 148px;
+    height: 42px;
+    padding: 0 1rem;
+    background: rgba(18, 18, 26, 0.88);
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    box-shadow: var(--shadow-md), 0 0 22px rgba(124, 58, 237, 0.18);
+    backdrop-filter: blur(14px);
+    transition: all var(--transition-normal);
+    z-index: 4;
+}
+
+.generate-preview-btn:hover:not(:disabled) {
+    background: var(--accent-gradient);
+    border-color: transparent;
+    transform: translateX(-50%) translateY(-1px);
+}
+
+.generate-preview-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.generate-preview-btn.loading .generate-preview-icon {
+    animation: spin 1s linear infinite;
 }
 
 /* --- Right Column: Form --- */
