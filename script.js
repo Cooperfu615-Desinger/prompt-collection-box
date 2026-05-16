@@ -183,6 +183,13 @@ function showToast(message = '已複製到剪貼簿！') {
     }, 2500);
 }
 
+function hideBrokenImage(img) {
+    const imageContainer = img.closest('.card-image, .variant-thumb');
+    if (imageContainer) {
+        imageContainer.style.display = 'none';
+    }
+}
+
 function showAppDialog({ title = '提示', message = '', confirmText = '確認', cancelText = '取消', showCancel = false } = {}) {
     return new Promise((resolve) => {
         elements.appDialogTitle.textContent = title;
@@ -383,7 +390,7 @@ function renderModalTagChips() {
         }
         const categoryLabel = category ? `<span class="chip-cat">${category}</span>` : '';
         chip.innerHTML = `${categoryLabel}${escapeHtml(tag)}<button type="button" class="chip-remove" data-idx="${idx}">&times;</button>`;
-        chip.querySelector('.chip-remove').onclick = () => {
+        chip.querySelector('.chip-remove').addEventListener('click', () => {
             const index = modalTags.indexOf(tag); // Find current index as idx might be stale after re-renders
             if (index > -1) {
                 modalTags.splice(index, 1);
@@ -393,7 +400,7 @@ function renderModalTagChips() {
                     renderTagPicker();
                 }
             }
-        };
+        });
         elements.modalTagChips.appendChild(chip);
     });
 }
@@ -442,7 +449,7 @@ function renderTagPicker() {
                 btn.style.color = colors.text;
             }
 
-            btn.onclick = () => togglePickerTag(tag);
+            btn.addEventListener('click', () => togglePickerTag(tag));
             tagList.appendChild(btn);
         });
 
@@ -500,7 +507,7 @@ function populateTagFilter() {
                 btn.style.color = colors.text;
             }
 
-            btn.onclick = () => toggleFilterTag(tag);
+            btn.addEventListener('click', () => toggleFilterTag(tag));
             tagList.appendChild(btn);
         });
 
@@ -509,7 +516,7 @@ function populateTagFilter() {
     }
 }
 
-window.toggleFilterTag = function (tag) {
+function toggleFilterTag(tag) {
     const index = selectedFilterTags.indexOf(tag);
     if (index === -1) {
         selectedFilterTags.push(tag);
@@ -518,7 +525,7 @@ window.toggleFilterTag = function (tag) {
     }
     populateTagFilter(); // Re-render to update selected styles
     renderCards();
-};
+}
 
 function clearAllFilters() {
     selectedFilterTags = [];
@@ -672,7 +679,7 @@ function createCardElement(prompt) {
 
     // Image from current variant
     const imageHtml = activeVariant.imageUrl
-        ? `<div class="card-image" id="card-image-${prompt.id}"><img src="${escapeHtml(activeVariant.imageUrl)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+        ? `<div class="card-image" id="card-image-${prompt.id}"><img src="${escapeHtml(activeVariant.imageUrl)}" alt="範例圖片" loading="lazy"></div>`
         : `<div class="card-image" id="card-image-${prompt.id}" style="display:none"></div>`;
 
     let tabsHeaderHtml = '';
@@ -736,7 +743,7 @@ function handleCardTabSwitch(btn, promptId, idx) {
     if (imgContainer) {
         const variantImg = prompt.variants[idx].imageUrl;
         if (variantImg) {
-            imgContainer.innerHTML = `<img src="${escapeHtml(variantImg)}" alt="範例圖片" loading="lazy" onerror="this.parentElement.style.display='none'">`;
+            imgContainer.innerHTML = `<img src="${escapeHtml(variantImg)}" alt="範例圖片" loading="lazy">`;
             imgContainer.style.display = '';
         } else {
             imgContainer.style.display = 'none';
@@ -859,6 +866,12 @@ function initEventListeners() {
             else if (document.body.classList.contains('filter-sidebar-open')) toggleFilterSidebar();
         }
     });
+
+    document.addEventListener('error', (e) => {
+        if (e.target instanceof HTMLImageElement) {
+            hideBrokenImage(e.target);
+        }
+    }, true);
 }
 
 // ===== Initialize App =====

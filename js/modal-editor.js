@@ -11,12 +11,12 @@ function renderModalTabs() {
         btn.draggable = true;
         btn.dataset.idx = index;
         btn.textContent = variant.tabName || `Tab ${index + 1}`;
-        btn.onclick = () => switchModalTab(index);
-        btn.ondragstart = (e) => handleModalTabDragStart(e, index);
-        btn.ondragover = handleModalTabDragOver;
-        btn.ondragleave = handleModalTabDragLeave;
-        btn.ondrop = (e) => handleModalTabDrop(e, index);
-        btn.ondragend = handleModalTabDragEnd;
+        btn.addEventListener('click', () => switchModalTab(index));
+        btn.addEventListener('dragstart', (e) => handleModalTabDragStart(e, index));
+        btn.addEventListener('dragover', handleModalTabDragOver);
+        btn.addEventListener('dragleave', handleModalTabDragLeave);
+        btn.addEventListener('drop', (e) => handleModalTabDrop(e, index));
+        btn.addEventListener('dragend', handleModalTabDragEnd);
 
         elements.modalTabsList.appendChild(btn);
 
@@ -30,10 +30,10 @@ function renderModalTabs() {
         labelInput.className = 'version-label-input';
         labelInput.placeholder = '頁籤名稱 (例如: ChatGPT, Midjourney)';
         labelInput.value = variant.tabName;
-        labelInput.oninput = (e) => {
+        labelInput.addEventListener('input', (e) => {
             variant.tabName = e.target.value;
             btn.childNodes[0].textContent = e.target.value || `Tab ${index + 1}`;
-        };
+        });
         panel.appendChild(labelInput);
 
         // Prompt Textarea
@@ -42,9 +42,9 @@ function renderModalTabs() {
         textarea.placeholder = '請輸入你的 Prompt 內容...';
         textarea.value = variant.prompt;
         textarea.id = `modal-variant-prompt-${index}`;
-        textarea.oninput = (e) => {
+        textarea.addEventListener('input', (e) => {
             variant.prompt = e.target.value;
-        };
+        });
         panel.appendChild(textarea);
 
         // --- Per-tab Image Upload Section ---
@@ -64,7 +64,7 @@ function renderModalTabs() {
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
         fileInput.className = 'file-input variant-file-input';
-        fileInput.onchange = (e) => {
+        fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 variant._pendingFile = file;
@@ -74,7 +74,7 @@ function renderModalTabs() {
                 urlInput.value = '';
                 variant.imageUrl = ''; // Will be replaced after upload
             }
-        };
+        });
         imgRow.appendChild(fileInput);
 
         // URL input
@@ -83,14 +83,14 @@ function renderModalTabs() {
         urlInput.className = 'variant-url-input';
         urlInput.placeholder = '或貼上圖片連結...';
         urlInput.value = variant.imageUrl || '';
-        urlInput.oninput = (e) => {
+        urlInput.addEventListener('input', (e) => {
             variant.imageUrl = e.target.value.trim();
             variant._pendingFile = null;
             fileInput.value = '';
             if (index === activeModalTabIdx) {
                 updatePreview(variant.imageUrl);
             }
-        };
+        });
         imgRow.appendChild(urlInput);
 
         imgSection.appendChild(imgRow);
@@ -99,7 +99,7 @@ function renderModalTabs() {
         if (variant.imageUrl) {
             const thumb = document.createElement('div');
             thumb.className = 'variant-thumb';
-            thumb.innerHTML = `<img src="${escapeHtml(variant.imageUrl)}" alt="thumb" onerror="this.parentElement.style.display='none'">`;
+            thumb.innerHTML = `<img src="${escapeHtml(variant.imageUrl)}" alt="thumb">`;
             imgSection.appendChild(thumb);
         }
 
@@ -120,9 +120,9 @@ function renderModalTabs() {
             </svg>
             複製
         `;
-        copyBtn.onclick = () => {
+        copyBtn.addEventListener('click', () => {
             copyToClipboard(variant.prompt);
-        };
+        });
         btnContainer.appendChild(copyBtn);
 
         panel.appendChild(btnContainer);
