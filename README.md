@@ -37,7 +37,12 @@
 prompt-collection-box/
 ├── index.html        # 單頁 App 結構與 CDN script
 ├── style.css         # 深色 UI、抽屜、卡片、標籤、登入頁樣式
-├── script.js         # Firebase、狀態、CRUD、渲染、備份、AI 生成邏輯
+├── script.js         # 主要 UI 狀態、CRUD、渲染、備份、匯入與流程控制
+├── js/
+│   ├── config.js     # Firebase config、常數、模型與標籤設定
+│   ├── firebase.js   # Firebase compat 初始化與 service handles
+│   ├── storage.js    # Firebase Storage 上傳 helper
+│   └── gemini-image.js # Gemini 圖片生成 client
 ├── firestore.rules   # Firestore 私人單帳號安全規則
 ├── storage.rules     # Storage 私人單帳號安全規則
 ├── firebase.json     # Firebase rules 部署設定

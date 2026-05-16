@@ -73,8 +73,15 @@ dom.window.firebase.firestore.FieldValue = {
     arrayUnion: (...values) => values
 };
 
-const js = fs.readFileSync('script.js', 'utf-8');
-dom.window.eval(js);
+const appScripts = [
+    'js/config.js',
+    'js/firebase.js',
+    'js/storage.js',
+    'js/gemini-image.js',
+    'script.js'
+].map((scriptPath) => fs.readFileSync(scriptPath, 'utf-8')).join('\n\n');
+
+dom.window.eval(appScripts);
 
 if (dom.window.document.readyState !== 'loading') {
     dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded', {
