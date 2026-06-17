@@ -1,10 +1,10 @@
-// ===== Gemini Image API Client =====
+// ===== Image API Clients =====
 function getGeneratedImagePart(responseData) {
     const parts = responseData?.candidates?.[0]?.content?.parts || [];
     return parts.find(part => part.inlineData || part.inline_data) || null;
 }
 
-function base64ImageToFile(base64Data, mimeType = 'image/png') {
+function base64ImageToFile(base64Data, mimeType = 'image/png', filenamePrefix = 'generated-preview') {
     const byteCharacters = atob(base64Data);
     const byteArrays = [];
 
@@ -18,7 +18,7 @@ function base64ImageToFile(base64Data, mimeType = 'image/png') {
     }
 
     const extension = mimeType.includes('jpeg') ? 'jpg' : 'png';
-    return new File(byteArrays, `gemini-preview-${Date.now()}.${extension}`, { type: mimeType });
+    return new File(byteArrays, `${filenamePrefix}-${Date.now()}.${extension}`, { type: mimeType });
 }
 
 async function requestGeminiPreviewImage(prompt, apiKey, model) {
@@ -47,5 +47,46 @@ async function requestGeminiPreviewImage(prompt, apiKey, model) {
         throw new Error('Gemini 未回傳圖片');
     }
 
-    return base64ImageToFile(inlineData.data, inlineData.mimeType || inlineData.mime_type || 'image/png');
+    return base64ImageToFile(
+        inlineData.data,
+        inlineData.mimeType || inlineData.mime_type || 'image/png',
+        'gemini-preview'
+    );
+}
+
+async function requestXaiPreviewImage(prompt, apiKey, model) {
+    const response = await fetch('https://api.x.ai/v1/images/generations', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model,
+            prompt,
+            n: 1,
+            response_format: 'b64_json'
+        })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = data?.error?.message || `API error: ${response.status}`;
+        throw new Error(message);
+    }
+
+    const imageData = data?.data?.[0];
+    if (imageData?.b64_json) {
+        return base64ImageToFile(imageData.b64_json, 'image/png', 'xai-preview');
+    }
+
+    throw new Error('xAI 未回傳圖片');
+}
+
+async function requestPreviewImage(prompt, apiKey, modelConfig) {
+    if (modelConfig.provider === 'xai') {
+        return requestXaiPreviewImage(prompt, apiKey, modelConfig.value);
+    }
+
+    return requestGeminiPreviewImage(prompt, apiKey, modelConfig.value);
 }

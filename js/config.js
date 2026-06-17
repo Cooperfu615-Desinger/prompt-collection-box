@@ -44,10 +44,36 @@ const API_KEY_STORAGE = 'gemini-api-key';
 const XAI_API_KEY_STORAGE = 'xai-api-key';
 const IMAGE_MODEL_STORAGE = 'gemini-image-model';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const GEMINI_IMAGE_MODELS = [
-    'gemini-3.1-flash-image-preview',
-    'gemini-3-pro-image-preview',
-    'gemini-2.5-flash-image'
+const IMAGE_MODEL_OPTIONS = [
+    {
+        value: 'gemini-3.1-flash-image-preview',
+        label: 'Gemini 3.1 Flash Image Preview',
+        provider: 'google'
+    },
+    {
+        value: 'gemini-3-pro-image-preview',
+        label: 'Gemini 3 Pro Image Preview',
+        provider: 'google'
+    },
+    {
+        value: 'gemini-2.5-flash-image',
+        label: 'Gemini 2.5 Flash Image',
+        provider: 'google'
+    },
+    {
+        value: 'grok-imagine-image',
+        label: 'xAI Grok Imagine Standard',
+        provider: 'xai'
+    },
+    {
+        value: 'grok-imagine-image-quality',
+        label: 'xAI Grok Imagine Quality',
+        provider: 'xai'
+    }
 ];
-const DEFAULT_GEMINI_IMAGE_MODEL = GEMINI_IMAGE_MODELS[0];
+const GEMINI_IMAGE_MODELS = IMAGE_MODEL_OPTIONS
+    .filter(option => option.provider === 'google')
+    .map(option => option.value);
+const IMAGE_MODEL_VALUES = IMAGE_MODEL_OPTIONS.map(option => option.value);
+const DEFAULT_GEMINI_IMAGE_MODEL = IMAGE_MODEL_OPTIONS[0].value;
 const MAX_VARIANTS = 5;

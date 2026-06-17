@@ -163,13 +163,17 @@ function saveXaiApiKey(key) {
 
 function getImageModel() {
     const storedModel = localStorage.getItem(IMAGE_MODEL_STORAGE);
-    return GEMINI_IMAGE_MODELS.includes(storedModel) ? storedModel : DEFAULT_GEMINI_IMAGE_MODEL;
+    return IMAGE_MODEL_VALUES.includes(storedModel) ? storedModel : DEFAULT_GEMINI_IMAGE_MODEL;
 }
 
 function saveImageModel(model) {
-    const selectedModel = GEMINI_IMAGE_MODELS.includes(model) ? model : DEFAULT_GEMINI_IMAGE_MODEL;
+    const selectedModel = IMAGE_MODEL_VALUES.includes(model) ? model : DEFAULT_GEMINI_IMAGE_MODEL;
     localStorage.setItem(IMAGE_MODEL_STORAGE, selectedModel);
     return selectedModel;
+}
+
+function getImageModelConfig(model = getImageModel()) {
+    return IMAGE_MODEL_OPTIONS.find(option => option.value === model) || IMAGE_MODEL_OPTIONS[0];
 }
 
 // ===== Utility Functions =====

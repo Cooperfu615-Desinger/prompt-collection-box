@@ -140,14 +140,14 @@ Gemini 與 xAI API Key 由使用者在設定視窗輸入，分別儲存在瀏覽
 - Gemini: `gemini-api-key`
 - xAI: `xai-api-key`
 
-目前不會上傳到自家伺服器。Gemini key 會由瀏覽器直接呼叫 Gemini API；xAI key 先預留給後續 Grok / Imagine 功能使用。
+目前不會上傳到自家伺服器。圖片生成會依設定中選擇的模型，從瀏覽器直接呼叫 Gemini 或 xAI API。
 
 注意事項：
 
 - 這種做法適合私人工具與本地使用。
 - 若未來要開放多人使用，建議改由後端或 serverless function 代理，避免 API key 暴露在瀏覽器環境。
-- Gemini model 目前使用 `gemini-2.0-flash:generateContent`。
-- 圖片生成模型可在設定中選擇，支援 `gemini-3.1-flash-image-preview`、`gemini-3-pro-image-preview` 與 `gemini-2.5-flash-image`。
+- 標題與標籤自動生成目前使用 Gemini `gemini-2.0-flash:generateContent`。
+- 圖片生成模型可在設定中選擇，支援 Gemini `gemini-3.1-flash-image-preview`、`gemini-3-pro-image-preview`、`gemini-2.5-flash-image`，以及 xAI `grok-imagine-image`、`grok-imagine-image-quality`。
 
 ## 資料模型概覽
 

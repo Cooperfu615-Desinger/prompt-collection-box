@@ -285,9 +285,10 @@ function setPreviewGenerateLoading(isLoading) {
 }
 
 async function generatePreviewImage() {
-    const apiKey = getApiKey();
+    const modelConfig = getImageModelConfig();
+    const apiKey = modelConfig.provider === 'xai' ? getXaiApiKey() : getApiKey();
     if (!apiKey) {
-        showToast('請先至設定輸入 Gemini API Key');
+        showToast(`請先至設定輸入 ${modelConfig.provider === 'xai' ? 'xAI' : 'Gemini'} API Key`);
         openSettingsModal();
         return;
     }
@@ -302,9 +303,8 @@ async function generatePreviewImage() {
     setPreviewGenerateLoading(true);
 
     try {
-        const model = getImageModel();
-        showToast('正在生成預覽圖...');
-        const imageFile = await requestGeminiPreviewImage(prompt, apiKey, model);
+        showToast(`正在使用 ${modelConfig.label} 生成預覽圖...`);
+        const imageFile = await requestPreviewImage(prompt, apiKey, modelConfig);
 
         currentVariant._pendingFile = imageFile;
         currentVariant.imageUrl = '';
