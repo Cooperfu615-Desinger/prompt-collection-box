@@ -41,6 +41,7 @@ const IMPORT_TAG_SYNONYMS = {
 
 const LOCAL_STORAGE_KEY = 'prompt-collection-box';
 const API_KEY_STORAGE = 'gemini-api-key';
+const XAI_API_KEY_STORAGE = 'xai-api-key';
 const IMAGE_MODEL_STORAGE = 'gemini-image-model';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const GEMINI_IMAGE_MODELS = [

@@ -133,10 +133,14 @@ firebase deploy --only firestore:rules,storage
 
 也可以直接在 Firebase Console 手動貼上 `firestore.rules` 與 `storage.rules` 的內容。
 
-## Gemini API Key
+## API Keys
 
-Gemini API Key 由使用者在設定視窗輸入，儲存在瀏覽器 LocalStorage 的 `gemini-api-key`。  
-目前不會上傳到自家伺服器，但會由瀏覽器直接呼叫 Gemini API。
+Gemini 與 xAI API Key 由使用者在設定視窗輸入，分別儲存在瀏覽器 LocalStorage：
+
+- Gemini: `gemini-api-key`
+- xAI: `xai-api-key`
+
+目前不會上傳到自家伺服器。Gemini key 會由瀏覽器直接呼叫 Gemini API；xAI key 先預留給後續 Grok / Imagine 功能使用。
 
 注意事項：
 

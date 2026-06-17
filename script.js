@@ -63,6 +63,7 @@ const elements = {
     settingsModalOverlay: document.getElementById('settingsModalOverlay'),
     settingsModalClose: document.getElementById('settingsModalClose'),
     apiKeyInput: document.getElementById('apiKeyInput'),
+    xaiApiKeyInput: document.getElementById('xaiApiKeyInput'),
     imageModelSelect: document.getElementById('imageModelSelect'),
     saveApiKeyBtn: document.getElementById('saveApiKeyBtn'),
     cancelSettingsBtn: document.getElementById('cancelSettingsBtn'),
@@ -142,6 +143,20 @@ function saveApiKey(key) {
         localStorage.setItem(API_KEY_STORAGE, trimmedKey);
     } else {
         localStorage.removeItem(API_KEY_STORAGE);
+    }
+    return true;
+}
+
+function getXaiApiKey() {
+    return localStorage.getItem(XAI_API_KEY_STORAGE) || '';
+}
+
+function saveXaiApiKey(key) {
+    const trimmedKey = key ? key.trim() : '';
+    if (trimmedKey) {
+        localStorage.setItem(XAI_API_KEY_STORAGE, trimmedKey);
+    } else {
+        localStorage.removeItem(XAI_API_KEY_STORAGE);
     }
     return true;
 }
@@ -232,7 +247,9 @@ function showAppConfirm(message, title = '確認') {
 // ===== Settings Modal Functions =====
 function openSettingsModal() {
     const existingKey = getApiKey();
+    const existingXaiKey = getXaiApiKey();
     elements.apiKeyInput.value = existingKey;
+    elements.xaiApiKeyInput.value = existingXaiKey;
     elements.imageModelSelect.value = getImageModel();
     elements.settingsModalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -246,10 +263,12 @@ function closeSettingsModal() {
 
 function handleSaveApiKey() {
     const key = elements.apiKeyInput.value;
+    const xaiKey = elements.xaiApiKeyInput.value;
     const imageModel = elements.imageModelSelect.value;
     saveApiKey(key);
+    saveXaiApiKey(xaiKey);
     saveImageModel(imageModel);
-    showToast(key ? 'API Key 與圖片模型已儲存！' : 'API Key 已清除，圖片模型已儲存！');
+    showToast('API Keys 與圖片模型已儲存！');
     closeSettingsModal();
 }
 
