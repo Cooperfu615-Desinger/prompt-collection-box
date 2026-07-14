@@ -87,6 +87,29 @@ const appScripts = [
 
 dom.window.eval(appScripts);
 
+const parsedImport = dom.window.parseMarkdownPrompt(`
+# Generated Prompt
+**Summary:** 場景：戶外 | 服裝：休閒
+
+## AI Prompt
+\`\`\`text
+primary prompt
+\`\`\`
+
+## Gpt
+\`\`\`text
+structured prompt
+\`\`\`
+
+## Grok/Z-Image
+\`\`\`text
+z-image prompt
+\`\`\`
+`, 'sample.md');
+if (parsedImport.variants.length !== 3) {
+    throw new Error(`Markdown import parser expected 3 variants, got ${parsedImport.variants.length}`);
+}
+
 if (dom.window.document.readyState !== 'loading') {
     dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded', {
         bubbles: true,

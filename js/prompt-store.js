@@ -80,13 +80,33 @@ async function migrateLocalStoragePrompts() {
 
 async function createPrompt(data) {
     const now = new Date().toISOString();
-    await db.collection(PROMPT_COLLECTION).add({
+    const prompt = {
         title: data.title,
         variants: data.variants,
         tags: data.tags,
         createdAt: now,
         updatedAt: now
+    };
+
+    [
+        'source',
+        'sourceLabel',
+        'summary',
+        'summaryFields',
+        'sourceProject',
+        'sourceId',
+        'sourceFileName',
+        'importBatchId',
+        'importedAt',
+        'contentHash',
+        'sourceTags',
+    ].forEach((key) => {
+        if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+            prompt[key] = data[key];
+        }
     });
+
+    await db.collection(PROMPT_COLLECTION).add(prompt);
 }
 
 async function savePrompt(id, data) {

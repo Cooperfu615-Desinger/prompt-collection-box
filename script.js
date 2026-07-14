@@ -71,6 +71,19 @@ const elements = {
     generatePreviewBtn: document.getElementById('generatePreviewBtn'),
     importBtn: document.getElementById('importBtn'),
     importFileInput: document.getElementById('importFileInput'),
+    importReviewOverlay: document.getElementById('importReviewOverlay'),
+    importReviewClose: document.getElementById('importReviewClose'),
+    cancelImportReviewBtn: document.getElementById('cancelImportReviewBtn'),
+    downloadImportReportBtn: document.getElementById('downloadImportReportBtn'),
+    startImportBtn: document.getElementById('startImportBtn'),
+    importReviewSubtitle: document.getElementById('importReviewSubtitle'),
+    importReviewSummary: document.getElementById('importReviewSummary'),
+    importReviewProgress: document.getElementById('importReviewProgress'),
+    importProgressFill: document.getElementById('importProgressFill'),
+    importProgressLabel: document.getElementById('importProgressLabel'),
+    importStatusFilter: document.getElementById('importStatusFilter'),
+    importDuplicateMode: document.getElementById('importDuplicateMode'),
+    importReviewList: document.getElementById('importReviewList'),
     addCustomTagBtn: document.getElementById('addCustomTagBtn'),
     backupBtn: document.getElementById('backupBtn'),
     sortSelect: document.getElementById('sortSelect')
@@ -593,25 +606,29 @@ async function addCustomTag(category, tagName) {
     }
 }
 
-async function addPrompt(data) {
+async function addPrompt(data, options = {}) {
     try {
         await createPrompt(data);
-        showToast('咒語已新增！');
+        if (!options.silent) showToast('咒語已新增！');
         console.log("Firestore 連線成功！(Add)");
+        return true;
     } catch (error) {
         console.error("Firestore Error (Add):", error);
-        showToast('新增失敗！');
+        if (!options.silent) showToast('新增失敗！');
+        throw error;
     }
 }
 
-async function updatePrompt(id, data) {
+async function updatePrompt(id, data, options = {}) {
     try {
         await savePrompt(id, data);
-        showToast('咒語已更新！');
+        if (!options.silent) showToast('咒語已更新！');
         console.log("Firestore 連線成功！(Update)");
+        return true;
     } catch (error) {
         console.error("Firestore Error (Update):", error);
-        showToast('更新失敗！');
+        if (!options.silent) showToast('更新失敗！');
+        throw error;
     }
 }
 

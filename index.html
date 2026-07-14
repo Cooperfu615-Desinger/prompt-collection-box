@@ -11,7 +11,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260617-xai-models">
+    <link rel="stylesheet" href="style.css?v=20260714-import-phase1">
 </head>
 
 <body>
@@ -25,8 +25,8 @@
             <div class="header-right">
                 <button class="filter-btn" id="filterBtn" title="開啟標籤篩選">🔍
                     標籤篩選</button>
-                <button class="import-btn" id="importBtn" title="匯入 Markdown Prompt">📤 匯入 MD</button>
-                <input type="file" id="importFileInput" accept=".md,text/markdown,text/plain" multiple hidden>
+                <button class="import-btn" id="importBtn" title="匯入 Markdown 或 ZIP Prompt">📤 匯入 MD / ZIP</button>
+                <input type="file" id="importFileInput" accept=".md,.zip,text/markdown,text/plain,application/zip" multiple hidden>
                 <button class="backup-btn" id="backupBtn" title="全部備份">📥 全部備份</button>
                 <button class="settings-btn" id="settingsBtn" title="設定">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,6 +327,54 @@
         </div>
     </div>
 
+    <!-- Import Review -->
+    <div class="import-review-overlay" id="importReviewOverlay" aria-hidden="true">
+        <section class="import-review-modal" role="dialog" aria-modal="true" aria-labelledby="importReviewTitle">
+            <div class="modal-header">
+                <div>
+                    <h2 id="importReviewTitle">匯入 Prompt</h2>
+                    <p class="import-review-subtitle" id="importReviewSubtitle">正在讀取檔案...</p>
+                </div>
+                <button class="modal-close" id="importReviewClose" title="關閉">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="18" x2="18" y2="6" />
+                    </svg>
+                </button>
+            </div>
+            <div class="import-review-body">
+                <div class="import-review-summary" id="importReviewSummary"></div>
+                <div class="import-review-progress" id="importReviewProgress" hidden>
+                    <div class="import-progress-track">
+                        <div class="import-progress-fill" id="importProgressFill"></div>
+                    </div>
+                    <div class="import-progress-label" id="importProgressLabel">準備匯入...</div>
+                </div>
+                <div class="import-review-toolbar">
+                    <label for="importStatusFilter">檢視</label>
+                    <select id="importStatusFilter" class="sort-select">
+                        <option value="all">全部項目</option>
+                        <option value="ready">可匯入</option>
+                        <option value="duplicate">重複項目</option>
+                        <option value="failed">失敗項目</option>
+                        <option value="success">已匯入</option>
+                    </select>
+                    <label for="importDuplicateMode">重複處理</label>
+                    <select id="importDuplicateMode" class="sort-select">
+                        <option value="skip">略過重複項目</option>
+                        <option value="import">仍匯入為新資料</option>
+                    </select>
+                </div>
+                <div class="import-review-list" id="importReviewList"></div>
+            </div>
+            <div class="form-actions import-review-actions">
+                <button type="button" class="btn btn-secondary" id="cancelImportReviewBtn">取消</button>
+                <button type="button" class="btn btn-secondary" id="downloadImportReportBtn" hidden>下載匯入報告</button>
+                <button type="button" class="btn btn-primary" id="startImportBtn">開始匯入</button>
+            </div>
+        </section>
+    </div>
+
     <!-- Toast Notification -->
     <div class="toast" id="toast">
         <span class="toast-icon">✓</span>
@@ -364,15 +412,15 @@
     </div>
 
     <!-- Scripts -->
-    <script src="js/config.js?v=20260617-xai-models"></script>
-    <script src="js/firebase.js?v=20260617-xai-models"></script>
-    <script src="js/prompt-store.js?v=20260617-xai-models"></script>
-    <script src="js/storage.js?v=20260617-xai-models"></script>
-    <script src="js/gemini-image.js?v=20260617-xai-models"></script>
-    <script src="script.js?v=20260617-xai-models"></script>
-    <script src="js/modal-editor.js?v=20260617-xai-models"></script>
-    <script src="js/markdown-import.js?v=20260617-xai-models"></script>
-    <script src="js/backup.js?v=20260617-xai-models"></script>
+    <script src="js/config.js?v=20260714-import-phase1"></script>
+    <script src="js/firebase.js?v=20260714-import-phase1"></script>
+    <script src="js/prompt-store.js?v=20260714-import-phase1"></script>
+    <script src="js/storage.js?v=20260714-import-phase1"></script>
+    <script src="js/gemini-image.js?v=20260714-import-phase1"></script>
+    <script src="script.js?v=20260714-import-phase1"></script>
+    <script src="js/modal-editor.js?v=20260714-import-phase1"></script>
+    <script src="js/markdown-import.js?v=20260714-import-phase1"></script>
+    <script src="js/backup.js?v=20260714-import-phase1"></script>
 </body>
 
 </html>

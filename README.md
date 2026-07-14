@@ -190,17 +190,21 @@ Prompt 文件大致格式：
 
 圖片下載可能受 CORS 限制而失敗，失敗項目會在備份完成時提示。
 
-## Markdown 匯入流程
+## Markdown / ZIP 匯入流程
 
-點擊「匯入 MD」可以選擇一個或多個 `.md` 檔案。匯入器目前支援 Prompt 工作台輸出的 Markdown 格式，會讀取：
+點擊「匯入 MD / ZIP」可以選擇一個或多個 `.md` 或 `.zip` 檔案。ZIP 會先解壓並解析其中所有 Markdown；如果包含 `manifest.json`，也會一併讀取來源標籤與結構化 metadata。
+
+匯入器支援以下 Prompt 區塊名稱：
 
 - `## AI Prompt`
-- `## Grok Structured Prompt`
-- `## Z-Image Prompt`
+- `## Grok Structured Prompt`、`## Grok Structured` 或 `## Gpt`
+- `## Z-Image Prompt`、`## Grok/Z-Image` 或 `## Z-Image`
 
-每個 code block 會變成一個 Prompt 版本頁籤。標題會優先從 `Summary` 的場景、服裝與光影組合產生；標籤會從現有標籤庫比對，並包含少量同義詞對應，例如「比基尼」會對應到「泳裝」。
+匯入後會先顯示檔案、標題、來源、標籤、重複狀態與解析錯誤。使用者確認後才會寫入 Firestore，並顯示匯入進度、成功／失敗清單與 `importBatchId`。
 
-目前匯入只處理文字內容，不會匯入外部圖片檔。
+標題會優先使用 manifest 的標題，否則從 `Summary` 的場景、服裝與光影組合產生。沒有 manifest 的舊 Markdown／ZIP 仍會使用現有標籤庫比對與同義詞推導，例如「比基尼」會對應到「泳裝」。
+
+每筆匯入資料會保存 `sourceProject`、`sourceId`、`sourceFileName`、`sourceTags`、`contentHash`、`importBatchId` 與 `importedAt`。目前匯入只處理文字內容，不會匯入外部圖片檔。
 
 ## 已知技術債
 

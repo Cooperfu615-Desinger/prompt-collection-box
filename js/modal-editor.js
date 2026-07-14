@@ -359,12 +359,17 @@ function handleFormSubmit(e) {
             tags: [...modalTags]
         };
 
-        if (editingId) {
-            await updatePrompt(editingId, data);
-        } else {
-            await addPrompt(data);
+        try {
+            if (editingId) {
+                await updatePrompt(editingId, data);
+            } else {
+                await addPrompt(data);
+            }
+            closeModal();
+        } catch (err) {
+            console.error('Prompt save failed:', err);
+            showAppAlert(`儲存失敗：${err.message || '無法寫入資料'}`, '儲存失敗');
         }
-        closeModal();
     })();
 }
 
